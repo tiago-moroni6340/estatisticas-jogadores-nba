@@ -9,18 +9,18 @@ from datetime import timedelta
 
 auth_router = APIRouter(prefix='/auth', tags=['auth'])
 
-logger = ...
-
 @auth_router.post('/criar_conta')
 async def criar_conta(usuario_schema: UsuarioSchema, session: Session = Depends(pegar_session)):
     usuario = session.query(Usuario).filter(Usuario.email == usuario_schema.email).first()
     if usuario:
-        logger.error(
-            "Tentativa de cadastro com e-mail já existente",
-            extra={"extra_data": {"email_tentativa": usuario_schema.email}}
-        )
         raise HTTPException(status_code=400, detail='Email de usuário já cadastrado')
     
+    if not validar_senha(usuario_schema.senha):
+        raise HTTPException(status_code=400, detail='Senha deve conter entre 8 a 25 caracteres, pelo menos 1 letra maiúscula, 1 número e 1 caractere especial')
+
+    if usuario_schema.senha != usuario_schema.confirmacao_senha:
+        raise HTTPException(status_code=400, detail="Senhas não coincidem!")
+
     senha_criptografada = bcrypt_context.hash(usuario_schema.senha)
     novo_usuario = Usuario(
         nome=usuario_schema.nome, 
@@ -39,11 +39,7 @@ async def criar_conta(usuario_schema: UsuarioSchema, session: Session = Depends(
     session.add(novo_usuario)
     session.commit()
 
-    
-    logger.info(
-        "Novo usuário cadastrado com sucesso",
-        extra={"extra_data": {"novo_usuario": usuario_schema.email}}
-    )
+
     return {
         'Mensagem': f'Usuário cadastrado com sucesso: {usuario_schema.email}',
     }
@@ -52,26 +48,14 @@ async def criar_conta(usuario_schema: UsuarioSchema, session: Session = Depends(
 async def login(login_schema: LoginSchema, session: Session = Depends(pegar_session)):
     usuario = autenticar_usuario(login_schema.email, login_schema.senha, session)
     if not usuario:
-        logger.error(
-            "Falha de autenticação: credenciais inválidas",
-            extra={"extra_data": {"email_tentativa": login_schema.email}}
-        )
         raise HTTPException(status_code=400, detail="Usuário não encontrado ou credenciais inválidas!")
     
     if not usuario.ativo:
-        logger.warning(
-            "Tentativa de login em conta desativada",
-            extra={"extra_data": {"usuario_id": usuario.id, "email": usuario.email}}
-        )
         raise HTTPException(status_code=403, detail="Esta conta foi desativada. Entre em contato com o administrador.")
         
     access_token = criar_token(usuario.id)
     refresh_token = criar_token(usuario.id, duracao_token=timedelta(days=7))
 
-    logger.info(
-        "Login efetuado com sucesso",
-        extra={"extra_data": {"usuario_id": usuario.id, "email": usuario.email}}
-    )
     return {
         'access_token': access_token,
         "refresh_token": refresh_token,
@@ -81,10 +65,6 @@ async def login(login_schema: LoginSchema, session: Session = Depends(pegar_sess
 @auth_router.get("/refresh")
 async def use_refresh_token(usuario: Usuario = Depends(verificar_token)):
     access_token = criar_token(usuario.id)
-    logger.info(
-        "Token de acesso renovado utilizando Refresh Token",
-        extra={"extra_data": {"usuario_id": usuario.id, "email": usuario.email}}
-    )
     return {
         'access_token': access_token,
         "token_type": "Bearer"
@@ -94,17 +74,9 @@ async def use_refresh_token(usuario: Usuario = Depends(verificar_token)):
 async def deletar_conta(nome_usuario: str, session: Session = Depends(pegar_session), usuario: Usuario = Depends(verificar_token)):
     conta = session.query(Usuario).filter(Usuario.nome == nome_usuario).first()
     if not conta:
-        logger.error(
-            "Usuario tentou excluir usuário inexistente",
-            extra={"extra_data": {"nome_alvo": nome_usuario, "admin": usuario.nome}}
-        )
         raise HTTPException(status_code=400, detail="Usuário não encontrado")
     
     session.delete(conta)
     session.commit()
 
-    logger.info(
-        "Conta de usuário excluída permanentemente do sistema",
-        extra={"extra_data": {"usuario_deletado": nome_usuario, "excluido_por": usuario.nome}}
-    )
     return {'Mensagem':'Conta deletada com sucesso!'}

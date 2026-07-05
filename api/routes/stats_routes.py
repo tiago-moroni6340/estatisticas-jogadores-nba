@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session
 from api.dependencies.dependencies import pegar_session, verificar_token
 from api.models.models import Usuario, DadosJogador, StatsRegularSeason, StatsSeasonPlayoff, StatsTotalPlayoff, StatsTotalRegularSeason, StatsGame
 from typing import Literal
+from api.utils.extracao_dados_partidas import executar_rust_partidas, executar_rust_linha_tempo, cache_jogos, cache_linha_tempo
+from datetime import datetime
 
 nba_router = APIRouter(prefix='/nba_dados')
 
@@ -290,3 +292,44 @@ async def comparar_jogadores(
         },
         "estatisticas": comparacao_metricas
     }
+
+@nba_router.get("/player_stats/games")
+async def obter_estatisticas_por_data(data: str = Query(..., description="Formato americano: MM/DD/YYYY")):
+    
+    try:
+        datetime.strptime(data, "%m/%d/%Y")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Formato de data inválido. Use estritamente MM/DD/YYYY.")
+
+    
+    if data in cache_jogos:
+        return cache_jogos[data]
+
+    dados = await executar_rust_partidas(data)
+    
+    if not dados:
+        return {"mensagem": f"Nenhum dado encontrado ou processado para a data {data}."}
+
+    cache_jogos[data] = dados
+    return dados
+
+@nba_router.get("/player_stats/timeline")
+async def obter_linha_tempo_jogador(
+    player_id: int = Query(..., description="ID numérico do jogador na NBA"),
+    temporada: str = Query("2025-26", description="Formato: YYYY-PP (Ex: 2025-26)")
+):
+    chave_cache = f"{player_id}_{temporada}"
+    
+    if chave_cache in cache_linha_tempo:
+        return cache_linha_tempo[chave_cache]
+        
+    dados = await executar_rust_linha_tempo(player_id, temporada)
+    
+    if not dados:
+        raise HTTPException(
+            status_code=404, 
+            detail=f"Nenhum dado encontrado para o Player ID {player_id} na temporada {temporada}."
+        )
+        
+    cache_linha_tempo[chave_cache] = dados
+    return dados

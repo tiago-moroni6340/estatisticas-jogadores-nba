@@ -14,6 +14,7 @@ class UsuarioSchema(BaseModel):
     equipe: str
     cargo: str
     senha: str
+    confirmacao_senha: str
     ativo: bool
 
 class LoginSchema(BaseModel):
