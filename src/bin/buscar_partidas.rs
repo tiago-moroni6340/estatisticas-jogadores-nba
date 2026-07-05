@@ -6,9 +6,23 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::error::Error;
 use std::time::Duration;
+use std::env;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+
+    let args: Vec<String> = env::args().collect();
+    
+    // Verifica se a data foi passada. Se não foi, encerra com uma mensagem de erro útil.
+    if args.len() < 2 {
+        eprintln!("ERRO: Data não fornecida.");
+        eprintln!("Uso correto: {} <MM/DD/YYYY>", args[0]);
+        std::process::exit(1);
+    }
+
+    // Pega o primeiro argumento passado após o nome do programa
+    let data_alvo = args[1].as_str();
+
     println!("Iniciando extração de calendário e Box Scores completos...");
 
     let client = configurar_cliente_http()?;
@@ -50,7 +64,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     )?;
 
     
-    let data_alvo = "04/02/2024"; 
     let url_scoreboard = "https://stats.nba.com/stats/scoreboardv2";
     
     let mut params_score = HashMap::new();
@@ -172,8 +185,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                             
                             let plus_minus = row[achar_idx("PLUS_MINUS")].as_i64().unwrap_or(0);
 
-                            let linhas_afetadas = tx.execute(
-                                "INSERT OR IGNORE INTO stats_partida_individual (
+                            tx.execute(
+                                "INSERT INTO stats_partida_individual (
                                     game_id, data_jogo, nba_player_id, nome_completo, 
                                     time_jogador, time_adversario, minutos,
                                     pts, ast, reb, oreb, dreb, stl, blk, tov, pf,
@@ -181,7 +194,28 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                 ) VALUES (
                                     ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13,
                                     ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26
-                                )",
+                                )
+                                ON CONFLICT(game_id, nba_player_id) DO UPDATE SET
+                                    minutos = excluded.minutos,
+                                    pts = excluded.pts,
+                                    ast = excluded.ast,
+                                    reb = excluded.reb,
+                                    oreb = excluded.oreb,
+                                    dreb = excluded.dreb,
+                                    stl = excluded.stl,
+                                    blk = excluded.blk,
+                                    tov = excluded.tov,
+                                    pf = excluded.pf,
+                                    fgm = excluded.fgm,
+                                    fga = excluded.fga,
+                                    fg_pct = excluded.fg_pct,
+                                    fg3m = excluded.fg3m,
+                                    fg3a = excluded.fg3a,
+                                    fg3_pct = excluded.fg3_pct,
+                                    ftm = excluded.ftm,
+                                    fta = excluded.fta,
+                                    ft_pct = excluded.ft_pct,
+                                    plus_minus = excluded.plus_minus",
                                 params![
                                     game_id, data_alvo, player_id, player_name, 
                                     time_jogador, time_adversario, min,
@@ -189,7 +223,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                     fgm, fga, fg_pct, fg3m, fg3a, fg3_pct, ftm, fta, ft_pct, plus_minus
                                 ],
                             )?;
-                            inseridos += linhas_afetadas;
+
+                            inseridos += 1; // Simplificado, já que agora sempre insere ou atualiza
                         }
                     }
                 }
