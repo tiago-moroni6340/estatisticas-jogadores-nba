@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from api.routes import nba_router
+from api.routes.routes import nba_router
 
 app = FastAPI()
 
