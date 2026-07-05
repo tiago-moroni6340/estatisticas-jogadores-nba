@@ -5,70 +5,106 @@ use rusqlite::{params, Connection};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::error::Error;
-use std::time::Duration;
+use std::time::{Duration, Instant}; 
+use std::sync::{Arc, Mutex};
+use futures::stream::{self, StreamExt}; 
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    println!("Iniciando pipeline de extração de dados da NBA...");
+    let inicio_pipeline = Instant::now();
 
-    let mut conn = Connection::open(r"C:\Users\moron\Documents\nba_stats\nba_dados.db")?;
+    println!("Iniciando pipeline de extração de dados da NBA em LOTE contínuo...");
+
+    let conn = Connection::open(r"C:\Users\moron\Documents\nba_stats\nba_dados.db")?;
     criar_tabelas(&conn)?;
-    let client = configurar_cliente_http()?;
+    
+    let conn_compartilhada = Arc::new(Mutex::new(conn));
+    let client = Arc::new(configurar_cliente_http()?);
 
-    // Buscando o ID correto baseado na nossa alteração anterior
-    let jogadores: Vec<(i64, String)> = {
-        let mut stmt = conn.prepare("SELECT nba_player_id, nome_completo FROM jogadores_ativos LIMIT 10")?;
-        stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
-            .filter_map(Result::ok)
-            .collect()
-    };
-
-    if jogadores.is_empty() {
-        println!("Nenhum jogador encontrado na tabela 'jogadores_ativos'. Rode o script 'buscar_jogadores' primeiro!");
-        return Ok(());
-    }
-
-    println!("Encontrados {} jogadores para processar.\n", jogadores.len());
-
-    for (player_id, nome) in jogadores {
-        println!(">>> Processando jogador: {} (ID: {})", nome, player_id);
-
-        // --- A. EXTRAIR PERFIL ---
-        let url_perfil = "https://stats.nba.com/stats/commonplayerinfo";
-        let mut params_perfil = HashMap::new();
-        params_perfil.insert("PlayerID", player_id.to_string());
+    loop {
         
-        match client.get(url_perfil).query(&params_perfil).send().await {
-            Ok(resp) if resp.status().is_success() => {
-                let json_perfil: Value = resp.json().await?;
-                salvar_perfil(&conn, player_id, &json_perfil)?;
-            }
-            _ => println!("    [Erro] Falha ao buscar perfil de {}.", nome),
+        let jogadores: Vec<(i64, String)> = {
+            let de_fato_conn = conn_compartilhada.lock().unwrap();
+            let mut stmt = de_fato_conn.prepare(
+                "SELECT j.nba_player_id, j.nome_completo 
+                 FROM jogadores_ativos j
+                 LEFT JOIN totais_carreira_regular t ON j.nba_player_id = t.nba_player_id
+                 WHERE t.nba_player_id IS NULL
+                 LIMIT 10"
+            )?;
+            stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+                .filter_map(Result::ok)
+                .collect()
+        };
+
+        
+        if jogadores.is_empty() {
+            println!("\n[FIM] Todos os jogadores da base foram processados com sucesso!");
+            break;
         }
 
-        // --- B. EXTRAIR ESTATÍSTICAS ---
-        let url_stats = "https://stats.nba.com/stats/playercareerstats";
-        let mut params_stats = HashMap::new();
-        params_stats.insert("LeagueID", "00".to_string());
-        params_stats.insert("PerMode", "Totals".to_string());
-        params_stats.insert("PlayerID", player_id.to_string());
+        println!("\n--- Processando novo lote de {} jogadores ---", jogadores.len());
 
-        match client.get(url_stats).query(&params_stats).send().await {
-            Ok(resp) if resp.status().is_success() => {
-                let json_stats: Value = resp.json().await?;
-                salvar_estatisticas(&mut conn, &json_stats)?;
+        let limite_concorrencia = 3; 
+
+        
+        let processamento_stream = stream::iter(jogadores).map(|(player_id, nome)| {
+            let client = Arc::clone(&client);
+            let conn = Arc::clone(&conn_compartilhada);
+
+            async move {
+                println!(">>> [Iniciando] {} (ID: {})", nome, player_id);
+
+                
+                let url_perfil = "https://stats.nba.com/stats/commonplayerinfo";
+                let mut params_perfil = HashMap::new();
+                params_perfil.insert("PlayerID", player_id.to_string());
+                
+                if let Ok(resp) = client.get(url_perfil).query(&params_perfil).send().await {
+                    if resp.status().is_success() {
+                        if let Ok(json_perfil) = resp.json::<Value>().await {
+                            let de_fato_conn = conn.lock().unwrap();
+                            let _ = salvar_perfil(&de_fato_conn, player_id, &json_perfil);
+                        }
+                    }
+                }
+
+                tokio::time::sleep(Duration::from_millis(300)).await;
+
+                
+                let url_stats = "https://stats.nba.com/stats/playercareerstats";
+                let mut params_stats = HashMap::new();
+                params_stats.insert("LeagueID", "00".to_string());
+                params_stats.insert("PerMode", "Totals".to_string());
+                params_stats.insert("PlayerID", player_id.to_string());
+
+                if let Ok(resp) = client.get(url_stats).query(&params_stats).send().await {
+                    if resp.status().is_success() {
+                        if let Ok(json_stats) = resp.json::<Value>().await {
+                            let mut de_fato_conn = conn.lock().unwrap();
+                            let _ = salvar_estatisticas(&mut de_fato_conn, &json_stats);
+                        }
+                    }
+                }
+
+                println!("<<< [Concluído] {} (ID: {})", nome, player_id);
             }
-            _ => println!("    [Erro] Falha ao buscar estatísticas de {}.", nome),
-        }
+        }).buffer_unordered(limite_concorrencia);
 
-        println!("    Aguardando 2 segundos para não sobrecarregar a API...\n");
-        tokio::time::sleep(Duration::from_secs(2)).await;
+       
+        processamento_stream.collect::<()>().await;
+
+       
+        println!("Lote concluído. Aguardando 5 segundos antes do próximo lote...");
+        tokio::time::sleep(Duration::from_secs(5)).await;
     }
 
-    println!("Pipeline concluída com sucesso! Verifique o banco de dados.");
+    let tempo_total = inicio_pipeline.elapsed();
+    println!("\nPipeline executada por completo!");
+    println!("Tempo total de execução: {:.2?}", tempo_total);
     Ok(())
 }
-
+ 
 fn configurar_cliente_http() -> Result<reqwest::Client, Box<dyn Error>> {
     let mut headers = HeaderMap::new();
     headers.insert(HOST, HeaderValue::from_static("stats.nba.com"));
@@ -94,7 +130,6 @@ fn configurar_cliente_http() -> Result<reqwest::Client, Box<dyn Error>> {
 }
 
 fn criar_tabelas(conn: &Connection) -> Result<(), rusqlite::Error> {
-    // 1. Tabela de Perfil - id autoincremento + nba_player_id único
     conn.execute(
         "CREATE TABLE IF NOT EXISTS jogadores_perfil (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -105,7 +140,6 @@ fn criar_tabelas(conn: &Connection) -> Result<(), rusqlite::Error> {
         )", [],
     )?;
 
-    // 2. Temporada Regular - Chave composta UNIQUE para evitar duplicar a mesma temporada do jogador
     conn.execute(
         "CREATE TABLE IF NOT EXISTS stats_temporada_regular (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -116,7 +150,6 @@ fn criar_tabelas(conn: &Connection) -> Result<(), rusqlite::Error> {
         )", [],
     )?;
 
-    // 3. Playoffs - Chave composta UNIQUE para a mesma temporada do jogador nos playoffs
     conn.execute(
         "CREATE TABLE IF NOT EXISTS stats_playoffs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -127,7 +160,6 @@ fn criar_tabelas(conn: &Connection) -> Result<(), rusqlite::Error> {
         )", [],
     )?;
 
-    // 4. Totais Carreira Regular - id autoincremento + nba_player_id único
     conn.execute(
         "CREATE TABLE IF NOT EXISTS totais_carreira_regular (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -136,7 +168,6 @@ fn criar_tabelas(conn: &Connection) -> Result<(), rusqlite::Error> {
         )", [],
     )?;
 
-    // 5. Totais Carreira Playoffs - id autoincremento + nba_player_id único
     conn.execute(
         "CREATE TABLE IF NOT EXISTS totais_carreira_playoffs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -156,7 +187,6 @@ fn salvar_perfil(conn: &Connection, player_id: i64, json: &Value) -> Result<(), 
             let achar_idx = |nome: &str| headers.iter().position(|h| h.as_str() == Some(nome)).unwrap_or(0);
 
             if let Some(r) = rows.get(0).and_then(|row| row.as_array()) {
-                // Removido o campo 'id' do INSERT para o SQLite gerar sozinho
                 conn.execute(
                     "INSERT OR REPLACE INTO jogadores_perfil (
                         nba_player_id, nome_completo, data_nascimento, escola, pais, 

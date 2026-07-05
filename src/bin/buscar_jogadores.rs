@@ -51,7 +51,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     println!("Conectando ao banco de dados SQLite...");
     let mut conn = Connection::open(r"C:\Users\moron\Documents\nba_stats\nba_dados.db")?;
 
-    // Alteração na estrutura da tabela:
     conn.execute(
         "CREATE TABLE IF NOT EXISTS jogadores_ativos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -79,8 +78,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 let team_abbreviation = row.get(10).and_then(|v| v.as_str()).unwrap_or("");
 
                 if roster_status == 1 && player_id != 0 {
-                    // Mudamos o INSERT para focar em 'nba_player_id' 
-                    // Se o jogador já existir, o 'INSERT OR REPLACE' vai atualizar baseado no UNIQUE
+                    
                     tx.execute(
                         "INSERT OR REPLACE INTO jogadores_ativos (nba_player_id, nome_completo, codigo_time, abreviacao_time)
                          VALUES (?1, ?2, ?3, ?4)",
