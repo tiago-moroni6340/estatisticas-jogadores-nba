@@ -25,7 +25,12 @@ pub fn configurar_cliente_http() -> Result<reqwest::Client, Box<dyn Error>> {
     headers.insert("x-nba-stats-origin", HeaderValue::from_static("stats"));
     headers.insert("x-nba-stats-token", HeaderValue::from_static("true"));
 
-    let client_builder = reqwest::Client::builder().timeout(Duration::from_secs(30)).default_headers(headers);
+    let client_builder = reqwest::Client::builder()
+    .timeout(Duration::from_secs(30))
+    .default_headers(headers)
+    .http1_only()
+    .no_gzip()
+    .no_brotli();
 
     let client = if let Ok(proxy_url) = env::var("BRIGHT_DATA_PROXY_URL") {
         let proxy = reqwest::Proxy::all(proxy_url)?;
