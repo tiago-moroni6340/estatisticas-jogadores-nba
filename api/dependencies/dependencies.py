@@ -2,7 +2,7 @@ from sqlalchemy.orm import sessionmaker, Session
 from api.models.models import db, Usuario
 from fastapi import Depends, HTTPException
 from jose import jwt, JWTError
-from config.config import SECRET_KEY, ALGORITHM, oauth2_schema
+from api.config.config import SECRET_KEY, ALGORITHM, oauth2_schema
 
 def pegar_session():
     try:

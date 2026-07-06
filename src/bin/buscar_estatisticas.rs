@@ -6,7 +6,6 @@ use std::time::{Duration, Instant};
 use std::sync::{Arc, Mutex};
 use futures::stream::{self, StreamExt}; 
 
-// Importa as funções compartilhadas da biblioteca do seu projeto
 use nba_stats::{configurar_cliente_http, criar_tabelas_estatisticas};
 
 #[tokio::main]
@@ -97,8 +96,8 @@ fn salvar_estatisticas(conn: &mut Connection, json: &Value) -> Result<(), Box<dy
                     for row in rows.iter().filter_map(|r| r.as_array()) {
                         tx.execute(
                             "INSERT OR REPLACE INTO stats_temporada_regular 
-                             (nba_player_id, season_id, team_abbreviation, player_age, gp, gs, min, pts, ast, reb)
-                             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                             (nba_player_id, season_id, team_abbreviation, player_age, gp, gs, min, pts, ast, fgm, fga, fg_pct, fg3m, fg3a, fg3_pct, ftm, fta, ft_pct, oreb, dreb, reb, stl, blk, tov, pf)
+                             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25)",
                             params![
                                 row[achar_idx("PLAYER_ID")].as_i64().unwrap_or(0),
                                 row[achar_idx("SEASON_ID")].as_str().unwrap_or(""),
@@ -109,7 +108,22 @@ fn salvar_estatisticas(conn: &mut Connection, json: &Value) -> Result<(), Box<dy
                                 row[achar_idx("MIN")].as_i64().unwrap_or(0),
                                 row[achar_idx("PTS")].as_i64().unwrap_or(0),
                                 row[achar_idx("AST")].as_i64().unwrap_or(0),
+                                row[achar_idx("FGM")].as_i64().unwrap_or(0),
+                                row[achar_idx("FGA")].as_i64().unwrap_or(0),
+                                row[achar_idx("FG_PCT")].as_i64().unwrap_or(0),
+                                row[achar_idx("FG3M")].as_i64().unwrap_or(0),
+                                row[achar_idx("FG3A")].as_i64().unwrap_or(0),
+                                row[achar_idx("FG3_PCT")].as_i64().unwrap_or(0),
+                                row[achar_idx("FTM")].as_i64().unwrap_or(0),
+                                row[achar_idx("FTA")].as_i64().unwrap_or(0),
+                                row[achar_idx("FT_PCT")].as_i64().unwrap_or(0),
+                                row[achar_idx("OREB")].as_i64().unwrap_or(0),
+                                row[achar_idx("DREB")].as_i64().unwrap_or(0),
                                 row[achar_idx("REB")].as_i64().unwrap_or(0),
+                                row[achar_idx("STL")].as_i64().unwrap_or(0),
+                                row[achar_idx("BLK")].as_i64().unwrap_or(0),
+                                row[achar_idx("TOV")].as_i64().unwrap_or(0),
+                                row[achar_idx("PF")].as_i64().unwrap_or(0),
                             ],
                         )?;
                     }
@@ -118,8 +132,8 @@ fn salvar_estatisticas(conn: &mut Connection, json: &Value) -> Result<(), Box<dy
                     for row in rows.iter().filter_map(|r| r.as_array()) {
                         tx.execute(
                             "INSERT OR REPLACE INTO stats_playoffs 
-                             (nba_player_id, season_id, team_abbreviation, player_age, gp, gs, min, pts, ast, reb)
-                             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                             (nba_player_id, season_id, team_abbreviation, player_age, gp, gs, min, pts, ast, fgm, fga, fg_pct, fg3m, fg3a, fg3_pct, ftm, fta, ft_pct, oreb, dreb, reb, stl, blk, tov, pf)
+                             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25)",
                             params![
                                 row[achar_idx("PLAYER_ID")].as_i64().unwrap_or(0),
                                 row[achar_idx("SEASON_ID")].as_str().unwrap_or(""),
@@ -130,7 +144,22 @@ fn salvar_estatisticas(conn: &mut Connection, json: &Value) -> Result<(), Box<dy
                                 row[achar_idx("MIN")].as_i64().unwrap_or(0),
                                 row[achar_idx("PTS")].as_i64().unwrap_or(0),
                                 row[achar_idx("AST")].as_i64().unwrap_or(0),
+                                row[achar_idx("FGM")].as_i64().unwrap_or(0),
+                                row[achar_idx("FGA")].as_i64().unwrap_or(0),
+                                row[achar_idx("FG_PCT")].as_i64().unwrap_or(0),
+                                row[achar_idx("FG3M")].as_i64().unwrap_or(0),
+                                row[achar_idx("FG3A")].as_i64().unwrap_or(0),
+                                row[achar_idx("FG3_PCT")].as_i64().unwrap_or(0),
+                                row[achar_idx("FTM")].as_i64().unwrap_or(0),
+                                row[achar_idx("FTA")].as_i64().unwrap_or(0),
+                                row[achar_idx("FT_PCT")].as_i64().unwrap_or(0),
+                                row[achar_idx("OREB")].as_i64().unwrap_or(0),
+                                row[achar_idx("DREB")].as_i64().unwrap_or(0),
                                 row[achar_idx("REB")].as_i64().unwrap_or(0),
+                                row[achar_idx("STL")].as_i64().unwrap_or(0),
+                                row[achar_idx("BLK")].as_i64().unwrap_or(0),
+                                row[achar_idx("TOV")].as_i64().unwrap_or(0),
+                                row[achar_idx("PF")].as_i64().unwrap_or(0),
                             ],
                         )?;
                     }
@@ -139,8 +168,8 @@ fn salvar_estatisticas(conn: &mut Connection, json: &Value) -> Result<(), Box<dy
                     if let Some(row) = rows.get(0).and_then(|r| r.as_array()) {
                         tx.execute(
                             "INSERT OR REPLACE INTO totais_carreira_regular 
-                             (nba_player_id, gp, gs, min, pts, ast, reb)
-                             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                             (nba_player_id, gp, gs, min, pts, ast, fgm, fga, fg_pct, fg3m, fg3a, fg3_pct, ftm, fta, ft_pct, oreb, dreb, reb, stl, blk, tov, fp)
+                             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)",
                             params![
                                 row[achar_idx("PLAYER_ID")].as_i64().unwrap_or(0),
                                 row[achar_idx("GP")].as_i64().unwrap_or(0),
@@ -148,7 +177,22 @@ fn salvar_estatisticas(conn: &mut Connection, json: &Value) -> Result<(), Box<dy
                                 row[achar_idx("MIN")].as_i64().unwrap_or(0),
                                 row[achar_idx("PTS")].as_i64().unwrap_or(0),
                                 row[achar_idx("AST")].as_i64().unwrap_or(0),
+                                row[achar_idx("FGM")].as_i64().unwrap_or(0),
+                                row[achar_idx("FGA")].as_i64().unwrap_or(0),
+                                row[achar_idx("FG_PCT")].as_i64().unwrap_or(0),
+                                row[achar_idx("FG3M")].as_i64().unwrap_or(0),
+                                row[achar_idx("FG3A")].as_i64().unwrap_or(0),
+                                row[achar_idx("FG3_PCT")].as_i64().unwrap_or(0),
+                                row[achar_idx("FTM")].as_i64().unwrap_or(0),
+                                row[achar_idx("FTA")].as_i64().unwrap_or(0),
+                                row[achar_idx("FT_PCT")].as_i64().unwrap_or(0),
+                                row[achar_idx("OREB")].as_i64().unwrap_or(0),
+                                row[achar_idx("DREB")].as_i64().unwrap_or(0),
                                 row[achar_idx("REB")].as_i64().unwrap_or(0),
+                                row[achar_idx("STL")].as_i64().unwrap_or(0),
+                                row[achar_idx("BLK")].as_i64().unwrap_or(0),
+                                row[achar_idx("TOV")].as_i64().unwrap_or(0),
+                                row[achar_idx("PF")].as_i64().unwrap_or(0),
                             ],
                         )?;
                     }
@@ -157,8 +201,8 @@ fn salvar_estatisticas(conn: &mut Connection, json: &Value) -> Result<(), Box<dy
                     if let Some(row) = rows.get(0).and_then(|r| r.as_array()) {
                         tx.execute(
                             "INSERT OR REPLACE INTO totais_carreira_playoffs 
-                             (nba_player_id, gp, gs, min, pts, ast, reb)
-                             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                             (nba_player_id, gp, gs, min, pts, ast, fgm, fga, fg_pct, fg3m, fg3a, fg3_pct, ftm, fta, ft_pct, oreb, dreb, reb, stl, blk, tov, fp)
+                             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)",
                             params![
                                 row[achar_idx("PLAYER_ID")].as_i64().unwrap_or(0),
                                 row[achar_idx("GP")].as_i64().unwrap_or(0),
@@ -166,7 +210,22 @@ fn salvar_estatisticas(conn: &mut Connection, json: &Value) -> Result<(), Box<dy
                                 row[achar_idx("MIN")].as_i64().unwrap_or(0),
                                 row[achar_idx("PTS")].as_i64().unwrap_or(0),
                                 row[achar_idx("AST")].as_i64().unwrap_or(0),
+                                row[achar_idx("FGM")].as_i64().unwrap_or(0),
+                                row[achar_idx("FGA")].as_i64().unwrap_or(0),
+                                row[achar_idx("FG_PCT")].as_i64().unwrap_or(0),
+                                row[achar_idx("FG3M")].as_i64().unwrap_or(0),
+                                row[achar_idx("FG3A")].as_i64().unwrap_or(0),
+                                row[achar_idx("FG3_PCT")].as_i64().unwrap_or(0),
+                                row[achar_idx("FTM")].as_i64().unwrap_or(0),
+                                row[achar_idx("FTA")].as_i64().unwrap_or(0),
+                                row[achar_idx("FT_PCT")].as_i64().unwrap_or(0),
+                                row[achar_idx("OREB")].as_i64().unwrap_or(0),
+                                row[achar_idx("DREB")].as_i64().unwrap_or(0),
                                 row[achar_idx("REB")].as_i64().unwrap_or(0),
+                                row[achar_idx("STL")].as_i64().unwrap_or(0),
+                                row[achar_idx("BLK")].as_i64().unwrap_or(0),
+                                row[achar_idx("TOV")].as_i64().unwrap_or(0),
+                                row[achar_idx("PF")].as_i64().unwrap_or(0),
                             ],
                         )?;
                     }

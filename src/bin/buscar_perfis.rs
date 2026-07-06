@@ -100,7 +100,7 @@ fn salvar_perfil(conn: &Connection, player_id: i64, json: &Value) -> Result<(), 
                         r[achar_idx("POSITION")].as_str().unwrap_or(""),
                         r[achar_idx("JERSEY")].as_str().unwrap_or(""),
                         r[achar_idx("SEASON_EXP")].as_str().unwrap_or(""),
-                        r[achar_idx("TEAM_NAME")].as_str().unwrap_or("")
+                        r[achar_idx("TEAM_ABBREVIATION")].as_str().unwrap_or("")
                     ],
                 )?;
                 println!("    [+] Perfil salvo com sucesso.");

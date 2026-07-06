@@ -3,7 +3,7 @@ from api.routes.stats_routes import nba_router
 from api.routes.auth_routes import auth_router
 from contextlib import asynccontextmanager
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from api.utils.extracao_dados_partidas import loop_monitoramento_automatico
+from api.utils.extracao_dados_rust import loop_monitoramento_automatico
 
 app = FastAPI()
 

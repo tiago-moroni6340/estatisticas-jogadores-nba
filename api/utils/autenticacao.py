@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
-from config.config import bcrypt_context, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES, SECRET_KEY
+from api.config.config import bcrypt_context, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES, SECRET_KEY
 from jose import jwt
-from models.models import Usuario
+from api.models.models import Usuario
 import re
 
 def criar_token(id_usuario, duracao_token=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES), escopo: str = "acesso"):

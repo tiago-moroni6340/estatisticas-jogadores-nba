@@ -2,9 +2,17 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, desc
 from sqlalchemy.orm import Session
 from api.dependencies.dependencies import pegar_session, verificar_token
-from api.models.models import Usuario, DadosJogador, StatsRegularSeason, StatsSeasonPlayoff, StatsTotalPlayoff, StatsTotalRegularSeason, StatsGame
+from api.models.models import Usuario, DadosJogador, StatsRegularSeason, StatsSeasonPlayoff, StatsTotalPlayoff, StatsTotalRegularSeason
 from typing import Literal
-from api.utils.extracao_dados_partidas import executar_rust_partidas, executar_rust_linha_tempo, cache_jogos, cache_linha_tempo
+from api.utils.extracao_dados_rust import (
+    executar_rust_partidas, 
+    executar_rust_linha_tempo, 
+    executar_rust_buscar_jogadores,
+    executar_rust_buscar_perfis,
+    executar_rust_buscar_estatisticas,
+    cache_jogos, 
+    cache_linha_tempo
+)
 from datetime import datetime
 
 nba_router = APIRouter(prefix='/nba_dados')
@@ -294,7 +302,7 @@ async def comparar_jogadores(
     }
 
 @nba_router.get("/player_stats/games")
-async def obter_estatisticas_por_data(data: str = Query(..., description="Formato americano: MM/DD/YYYY")):
+async def obter_estatisticas_por_data(data: str = Query(..., description="Formato americano: MM/DD/YYYY"), usuario: Usuario = Depends(verificar_token)):
     
     try:
         datetime.strptime(data, "%m/%d/%Y")
@@ -316,7 +324,8 @@ async def obter_estatisticas_por_data(data: str = Query(..., description="Format
 @nba_router.get("/player_stats/timeline")
 async def obter_linha_tempo_jogador(
     player_id: int = Query(..., description="ID numérico do jogador na NBA"),
-    temporada: str = Query("2025-26", description="Formato: YYYY-PP (Ex: 2025-26)")
+    temporada: str = Query("2025-26", description="Formato: YYYY-PP (Ex: 2025-26)"),
+    usuario: Usuario = Depends(verificar_token)
 ):
     chave_cache = f"{player_id}_{temporada}"
     
@@ -333,3 +342,33 @@ async def obter_linha_tempo_jogador(
         
     cache_linha_tempo[chave_cache] = dados
     return dados
+
+@nba_router.post("/update_db/players")
+async def atualizar_banco_jogadores():
+    """Aciona o pipeline em Rust para buscar e salvar jogadores ativos."""
+    resultado = await executar_rust_buscar_jogadores()
+    
+    if resultado.get("status") == "erro":
+        raise HTTPException(status_code=500, detail=resultado["detalhe"])
+        
+    return resultado
+
+@nba_router.post("/update_db/profiles")
+async def atualizar_banco_perfis():
+    """Aciona o pipeline em Rust para baixar e salvar perfis pendentes."""
+    resultado = await executar_rust_buscar_perfis()
+    
+    if resultado.get("status") == "erro":
+        raise HTTPException(status_code=500, detail=resultado["detalhe"])
+        
+    return resultado
+
+@nba_router.post("/update_db/statistics")
+async def atualizar_banco_estatisticas():
+    """Aciona o pipeline em Rust para baixar e salvar estatísticas de carreira pendentes."""
+    resultado = await executar_rust_buscar_estatisticas()
+    
+    if resultado.get("status") == "erro":
+        raise HTTPException(status_code=500, detail=resultado["detalhe"])
+        
+    return resultado

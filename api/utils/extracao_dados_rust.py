@@ -7,6 +7,7 @@ from api.dependencies.dependencies import pegar_session
 from contextlib import contextmanager
 from api.models.models import StatsRegularSeason, StatsTotalRegularSeason, StatsSeasonPlayoff, StatsTotalPlayoff
 from nba_api.stats.endpoints import scoreboardv2
+from pathlib import Path
 
 
 pegar_session_ctx = contextmanager(pegar_session)
@@ -14,9 +15,30 @@ pegar_session_ctx = contextmanager(pegar_session)
 cache_jogos = TTLCache(maxsize=120, ttl=3600)
 cache_linha_tempo = TTLCache(maxsize=200, ttl=600)
 
-
 datas_em_execucao = set()
 jogadores_em_execucao = set()
+
+rotinas_em_execucao = {
+    "estatisticas": False,
+    "jogadores": False,
+    "perfis": False
+}
+
+def resource_path(*path_segments: str) -> Path:
+    """
+    Retorna o caminho absoluto para um recurso baseado na raiz do projeto.
+    
+    Aceita múltiplos argumentos (como strings), simulando o os.path.join.
+    """
+    # Define a raiz base (onde este script de utilidade está)
+    # Se esta função estiver em 'utils/helpers.py', o .parent vai para 'utils/'
+    # e o segundo .parent vai para a raiz do projeto. Ajuste conforme sua estrutura.
+    BASE_DIR = Path(__file__).resolve().parent
+    
+    # Junta a base com os segmentos passados na função
+    resource_path = BASE_DIR.joinpath(*path_segments)
+    
+    return resource_path
 
 async def executar_rust_partidas(data_str: str) -> list:
     """Executa o binário compilado em Rust e captura o JSON retornado no stdout."""
@@ -24,10 +46,14 @@ async def executar_rust_partidas(data_str: str) -> list:
         print(f"[{datetime.now()}] Aviso: Extração para {data_str} já está rodando. Pulando.")
         return []
     
+    
+
     try:
+        caminho_modulo_rust = resource_path("target\release\buscar_partidas.exe")
+
         datas_em_execucao.add(data_str)
         process = await asyncio.create_subprocess_exec(
-            r"C:\Users\moron\Documents\nba_stats\target\release\seu_programa_rust.exe", 
+            caminho_modulo_rust, 
             data_str,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
@@ -54,6 +80,7 @@ async def executar_rust_linha_tempo(player_id: int, temporada: str = "2025-26") 
     retornando o dicionário JSON gerado pelo stdout.
     """
     chave_execucao = f"{player_id}_{temporada}"
+
     
     if chave_execucao in jogadores_em_execucao:
         print(f"[{datetime.now()}] Aviso: Busca para Player {player_id} ({temporada}) já está rodando. Pulando.")
@@ -66,10 +93,10 @@ async def executar_rust_linha_tempo(player_id: int, temporada: str = "2025-26") 
         player_id_str = str(player_id)
         
      
-        caminho_binario = r"C:\Users\moron\Documents\nba_stats\target\release\seu_programa_rust.exe"
+        caminho_modulo_rust = resource_path("target\release\buscar_historico_partidas_jogadores.exe")
         
         process = await asyncio.create_subprocess_exec(
-            caminho_binario, 
+            caminho_modulo_rust, 
             player_id_str,
             temporada,
             stdout=asyncio.subprocess.PIPE,
@@ -90,6 +117,89 @@ async def executar_rust_linha_tempo(player_id: int, temporada: str = "2025-26") 
         
     finally:
         jogadores_em_execucao.remove(chave_execucao)
+
+async def executar_rust_buscar_jogadores() -> dict:
+    """Executa o pipeline Rust de busca de jogadores ativos."""
+    if rotinas_em_execucao["jogadores"]:
+        return {"status": "ocupado", "mensagem": "A atualização de jogadores já está em andamento."}
+    
+    
+    
+    try:
+        rotinas_em_execucao["jogadores"] = True
+        caminho_modulo_rust = resource_path("target\release\buscar_jogadores.exe")
+        
+        process = await asyncio.create_subprocess_exec(
+            caminho_modulo_rust,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        
+        stdout, stderr = await process.communicate()
+        
+        if process.returncode != 0:
+            print(f"Erro no módulo Rust (Jogadores): {stderr.decode().strip()}")
+            return {"status": "erro", "detalhe": stderr.decode().strip()}
+            
+        return {"status": "sucesso", "log": stdout.decode().strip()}
+        
+    finally:
+        rotinas_em_execucao["jogadores"] = False
+
+async def executar_rust_buscar_perfis() -> dict:
+    """Executa o pipeline Rust de busca de perfis dos jogadores."""
+    if rotinas_em_execucao["perfis"]:
+        return {"status": "ocupado", "mensagem": "A atualização de perfis já está em andamento."}
+    
+    try:
+        rotinas_em_execucao["perfis"] = True
+
+        
+        caminho_modulo_rust = resource_path("target\release\buscar_perfis.exe")
+        
+        process = await asyncio.create_subprocess_exec(
+            caminho_modulo_rust,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        
+        stdout, stderr = await process.communicate()
+        
+        if process.returncode != 0:
+            print(f"Erro no módulo Rust (Perfis): {stderr.decode().strip()}")
+            return {"status": "erro", "detalhe": stderr.decode().strip()}
+            
+        return {"status": "sucesso", "log": stdout.decode().strip()}
+        
+    finally:
+        rotinas_em_execucao["perfis"] = False
+
+async def executar_rust_buscar_estatisticas() -> dict:
+    """Executa o pipeline Rust de atualização de estatísticas (PostSeason/RegularSeason)."""
+    if rotinas_em_execucao["estatisticas"]:
+        return {"status": "ocupado", "mensagem": "A atualização de estatísticas já está em andamento."}
+    
+    try:
+        rotinas_em_execucao["estatisticas"] = True
+        
+        caminho_modulo_rust = resource_path("target\release\buscar_estatisticas.exe")
+        
+        process = await asyncio.create_subprocess_exec(
+            caminho_modulo_rust,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        
+        stdout, stderr = await process.communicate()
+        
+        if process.returncode != 0:
+            print(f"Erro no módulo Rust (Estatísticas): {stderr.decode().strip()}")
+            return {"status": "erro", "detalhe": stderr.decode().strip()}
+            
+        return {"status": "sucesso", "log": stdout.decode().strip()}
+        
+    finally:
+        rotinas_em_execucao["estatisticas"] = False
 
 def verificar_se_ha_jogos_hoje() -> bool:
     """Usa a nba_api para verificar se o calendário de hoje possui partidas."""

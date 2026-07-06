@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
-from models.models import Usuario
-from dependencies.dependencies import pegar_session, verificar_token
-from config.config import bcrypt_context
-from utils.autenticacao import criar_token, autenticar_usuario, validar_senha
-from schemas.schemas import UsuarioSchema, LoginSchema
+from api.models.models import Usuario
+from api.dependencies.dependencies import pegar_session, verificar_token
+from api.config.config import bcrypt_context
+from api.utils.autenticacao import criar_token, autenticar_usuario, validar_senha
+from api.schemas.schemas import UsuarioSchema, LoginSchema
 from sqlalchemy.orm import Session
 from datetime import timedelta
 

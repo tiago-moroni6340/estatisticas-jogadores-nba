@@ -1,4 +1,3 @@
-use reqwest::header::{HeaderMap, HeaderValue};
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -6,7 +5,8 @@ use std::error::Error;
 use std::time::Duration;
 use std::env;
 
-// --- Estrutura que será convertida em JSON no final ---
+use nba_stats::configurar_cliente_http;
+
 #[derive(Serialize)]
 struct RespostaFinal {
     data: String,
@@ -19,7 +19,7 @@ struct GameInfo {
     game_id: String,
     season: String,
     tipo_jogo: String,
-    equipes: Vec<TeamScore>, // Placar isolado dos jogadores
+    equipes: Vec<TeamScore>, 
     jogadores: Vec<PlayerGameStat>,
 }
 
@@ -91,14 +91,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 let rows = game_header["rowSet"].as_array().unwrap();
                 
                 let idx_game_id = headers.iter().position(|h| h.as_str() == Some("GAME_ID")).unwrap();
-                // Pega o índice da Season (usamos unwrap_or para segurança caso a API não retorne)
                 let idx_season = headers.iter().position(|h| h.as_str() == Some("SEASON")).unwrap_or(0);
 
                 for row in rows.iter().filter_map(|r| r.as_array()) {
                     if let Some(game_id) = row[idx_game_id].as_str() {
                         let season_raw = row.get(idx_season).and_then(|v| v.as_str()).unwrap_or("");
                         
-                        // Transforma "2023" em "2023-24"
                         let season_formatada = if let Ok(ano) = season_raw.parse::<u32>() {
                             format!("{}-{:02}", ano, (ano + 1) % 100)
                         } else {
@@ -157,7 +155,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let mut times_no_jogo = Vec::new();
 
             if let Some(result_sets) = json_box["resultSets"].as_array() {
-                // --- 1. EXTRAIR O PLACAR DAS EQUIPES ---
                 if let Some(team_stats) = result_sets.iter().find(|s| s["name"] == "TeamStats") {
                     let headers = team_stats["headers"].as_array().unwrap();
                     let rows = team_stats["rowSet"].as_array().unwrap();
@@ -174,7 +171,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     }
                 }
 
-                // --- 2. EXTRAIR OS JOGADORES ---
                 if let Some(player_stats) = result_sets.iter().find(|s| s["name"] == "PlayerStats") {
                     let headers = player_stats["headers"].as_array().unwrap();
                     let rows = player_stats["rowSet"].as_array().unwrap();
@@ -236,10 +232,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
             }
 
-            // --- 3. AGRUPAR TUDO NO JOGO ATUAL ---
             jogos_extraidos.push(GameInfo {
                 game_id: game_id.clone(),
-                season: season.clone(),   // <-- Passa a temporada para o JSON aqui
+                season: season.clone(),   
                 tipo_jogo: tipo_jogo.to_string(),
                 equipes: equipes_info,
                 jogadores: jogadores_info,
@@ -253,7 +248,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     eprintln!("Extração finalizada!");
 
-    // --- MONTA A RESPOSTA FINAL E IMPRIME BONITO (PRETTY) ---
     let resposta_final = RespostaFinal {
         data: data_alvo.to_string(),
         quantidade_jogos: jogos_extraidos.len(),
@@ -265,31 +259,4 @@ async fn main() -> Result<(), Box<dyn Error>> {
     println!("{}", json_output);
 
     Ok(())
-}
-
-fn configurar_cliente_http() -> Result<reqwest::Client, Box<dyn Error>> {
-    let mut headers = HeaderMap::new();
-    
-    
-    headers.insert("Host", HeaderValue::from_static("stats.nba.com"));
-    headers.insert("Connection", HeaderValue::from_static("keep-alive"));
-    headers.insert("User-Agent", HeaderValue::from_static("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"));
-    headers.insert("Accept", HeaderValue::from_static("application/json, text/plain, */*"));
-    headers.insert("Origin", HeaderValue::from_static("https://www.nba.com"));
-    headers.insert("Referer", HeaderValue::from_static("https://www.nba.com/"));
-    headers.insert("Accept-Language", HeaderValue::from_static("en-US,en;q=0.9,pt-BR;q=0.8,pt;q=0.7"));
-    
-    
-    headers.insert("sec-fetch-site", HeaderValue::from_static("same-site"));
-    headers.insert("sec-fetch-mode", HeaderValue::from_static("cors"));
-    headers.insert("sec-fetch-dest", HeaderValue::from_static("empty"));
-    headers.insert("x-nba-stats-origin", HeaderValue::from_static("stats"));
-    headers.insert("x-nba-stats-token", HeaderValue::from_static("true"));
-
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(30)) 
-        .default_headers(headers)
-        .build()?;
-    
-    Ok(client)
 }

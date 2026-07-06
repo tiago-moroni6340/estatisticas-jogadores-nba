@@ -1,7 +1,4 @@
-from pydantic import BaseModel, field_validator, EmailStr
-from typing import List
-from datetime import date
-from enum import Enum
+from pydantic import BaseModel, EmailStr
 
 class UsuarioSchema(BaseModel):
     nome: str
@@ -21,15 +18,4 @@ class LoginSchema(BaseModel):
     email: EmailStr
     senha: str
 
-class NovoLogin(BaseModel):
-    reset_token: str
-    nova_senha: str
-    confirmacao_nova_senha: str
-
-class VerificarCodigoEmail(BaseModel):
-    email: EmailStr
-    codigo: str
-
-class EmailTrocarSenha(BaseModel):
-    email: EmailStr
     

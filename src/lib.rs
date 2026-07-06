@@ -7,6 +7,7 @@ use std::time::Duration;
 
 pub fn configurar_cliente_http() -> Result<reqwest::Client, Box<dyn Error>> {
     let mut headers = HeaderMap::new();
+    
     headers.insert(HOST, HeaderValue::from_static("stats.nba.com"));
     headers.insert(CONNECTION, HeaderValue::from_static("keep-alive"));
     headers.insert(
@@ -20,13 +21,29 @@ pub fn configurar_cliente_http() -> Result<reqwest::Client, Box<dyn Error>> {
     headers.insert("sec-fetch-site", HeaderValue::from_static("same-site"));
     headers.insert("sec-fetch-mode", HeaderValue::from_static("cors"));
     headers.insert("sec-fetch-dest", HeaderValue::from_static("empty"));
+    headers.insert("x-nba-stats-origin", HeaderValue::from_static("stats"));
+    headers.insert("x-nba-stats-token", HeaderValue::from_static("true"));
 
     let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(15))
+        .timeout(Duration::from_secs(30))
         .default_headers(headers)
         .build()?;
     
     Ok(client)
+}
+
+pub fn criar_tabela_jogadores_ativos(conn: &Connection) -> Result<(), rusqlite::Error> {
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS jogadores_ativos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nba_player_id INTEGER UNIQUE,
+            nome_completo TEXT,
+            codigo_time INTEGER,
+            abreviacao_time TEXT
+        )",
+        [],
+    )?;
+    Ok(())
 }
 
 pub fn criar_tabela_perfil(conn: &Connection) -> Result<(), rusqlite::Error> {
@@ -48,7 +65,9 @@ pub fn criar_tabelas_estatisticas(conn: &Connection) -> Result<(), rusqlite::Err
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nba_player_id INTEGER, season_id TEXT, team_abbreviation TEXT,
             player_age REAL, gp INTEGER, gs INTEGER, min INTEGER, pts INTEGER,
-            ast INTEGER, reb INTEGER,
+            ast INTEGER, fgm INTEGER, fga INTEGER, fg_pct INTEGER, fg3m INTEGER, fg3a INTEGER, 
+            fg3_pct INTEGER, ftm INTEGER, fta INTEGER, ft_pct INTEGER,
+            oreb INTEGER, dreb INTEGER, reb INTEGER, stl INTEGER, blk INTEGER, tov INTEGER, pf INTEGER,
             UNIQUE(nba_player_id, season_id, team_abbreviation)
         )", [],
     )?;
@@ -58,7 +77,9 @@ pub fn criar_tabelas_estatisticas(conn: &Connection) -> Result<(), rusqlite::Err
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nba_player_id INTEGER, season_id TEXT, team_abbreviation TEXT,
             player_age REAL, gp INTEGER, gs INTEGER, min INTEGER, pts INTEGER,
-            ast INTEGER, reb INTEGER,
+            ast INTEGER, fgm INTEGER, fga INTEGER, fg_pct INTEGER, fg3m INTEGER, fg3a INTEGER, 
+            fg3_pct INTEGER, ftm INTEGER, fta INTEGER, ft_pct INTEGER,
+            oreb INTEGER, dreb INTEGER, reb INTEGER, stl INTEGER, blk INTEGER, tov INTEGER, pf INTEGER,
             UNIQUE(nba_player_id, season_id, team_abbreviation)
         )", [],
     )?;
@@ -66,16 +87,20 @@ pub fn criar_tabelas_estatisticas(conn: &Connection) -> Result<(), rusqlite::Err
     conn.execute(
         "CREATE TABLE IF NOT EXISTS totais_carreira_regular (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nba_player_id INTEGER UNIQUE, 
-            gp INTEGER, gs INTEGER, min INTEGER, pts INTEGER, ast INTEGER, reb INTEGER
+            nba_player_id INTEGER, gp INTEGER, gs INTEGER, min INTEGER, pts INTEGER,
+            ast INTEGER, fgm INTEGER, fga INTEGER, fg_pct INTEGER, fg3m INTEGER, fg3a INTEGER, 
+            fg3_pct INTEGER, ftm INTEGER, fta INTEGER, ft_pct INTEGER,
+            oreb INTEGER, dreb INTEGER, reb INTEGER, stl INTEGER, blk INTEGER, tov INTEGER, fp INTEGER
         )", [],
     )?;
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS totais_carreira_playoffs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nba_player_id INTEGER UNIQUE, 
-            gp INTEGER, gs INTEGER, min INTEGER, pts INTEGER, ast INTEGER, reb INTEGER
+            nba_player_id INTEGER, gp INTEGER, gs INTEGER, min INTEGER, pts INTEGER,
+            ast INTEGER, fgm INTEGER, fga INTEGER, fg_pct INTEGER, fg3m INTEGER, fg3a INTEGER, 
+            fg3_pct INTEGER, ftm INTEGER, fta INTEGER, ft_pct INTEGER,
+            oreb INTEGER, dreb INTEGER, reb INTEGER, stl INTEGER, blk INTEGER, tov INTEGER, fp INTEGER
         )", [],
     )?;
 
