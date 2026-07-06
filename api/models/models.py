@@ -36,6 +36,14 @@ class Usuario(Base):
         self.is_verified = is_verified
         self.ativo = ativo
 
+class JogadoresAtivos(Base):
+    __tablename__ = 'jogadores_ativos'
+
+    id = Column('id', Integer, primary_key=True, autoincrement=True)
+    nba_player_id = Column('nba_player_id', Integer, unique=True)
+    nome_completo = Column('nome_completo', String)
+    codigo_time = Column('codigo_time', Integer)
+    abreviacao_time = Column('abreviacao_time', Integer)
 
 class DadosJogador(Base):
     __tablename__ = 'jogadores_perfil'
