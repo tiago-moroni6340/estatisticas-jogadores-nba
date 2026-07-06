@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
 import os
 from fastapi.security import OAuth2PasswordBearer
-from passlib.context import CryptContext
+import bcrypt
 
 load_dotenv()
 
@@ -11,5 +11,17 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv('ACCESS_TOKEN_EXPIRE_MINUTES'))
 DATABASE_URL = os.getenv('DATABASE_URL')
 RESEND_API_KEY = os.getenv('RESEND_API_KEY')
 
-bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
+class BcryptContext:
+    def hash(self, password: str) -> str:
+        # Gera o sal e o hash usando strings convertidas em bytes
+        salt = bcrypt.gensalt()
+        return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
+
+    def verify(self, plain_password: str, hashed_password: str) -> bool:
+        try:
+            return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+        except Exception:
+            return False
+
+bcrypt_context = BcryptContext()
 oauth2_schema = OAuth2PasswordBearer(tokenUrl="auth/login-form")
