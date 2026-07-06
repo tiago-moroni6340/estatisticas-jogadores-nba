@@ -4,6 +4,7 @@ use reqwest::header::{
 use std::error::Error;
 use std::time::Duration;
 use sqlx::PgPool;
+use std::env;
 
 pub fn configurar_cliente_http() -> Result<reqwest::Client, Box<dyn Error>> {
     let mut headers = HeaderMap::new();
@@ -24,10 +25,15 @@ pub fn configurar_cliente_http() -> Result<reqwest::Client, Box<dyn Error>> {
     headers.insert("x-nba-stats-origin", HeaderValue::from_static("stats"));
     headers.insert("x-nba-stats-token", HeaderValue::from_static("true"));
 
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(30))
-        .default_headers(headers)
-        .build()?;
+    let client_builder = reqwest::Client::builder().timeout(Duration::from_secs(30)).default_headers(headers);
+
+    let client = if let Ok(proxy_url) = env::var("BRIGHT_DATA_PROXY_URL") {
+        let proxy = reqwest::Proxy::all(proxy_url)?;
+        client_builder.proxy(proxy).build()?
+    } else {
+        println!("Aviso: Rodando sem proxy (BRIGHT_DATA_PROXY_URL não definida).");
+        client_builder.build()?
+    };
     
     Ok(client)
 }
