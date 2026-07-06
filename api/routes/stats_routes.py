@@ -61,8 +61,22 @@ async def estatistica_total_carreira(
     reg_stats = session.query(
         func.sum(StatsTotalRegularSeason.pts).label("pontos"),
         func.sum(StatsTotalRegularSeason.ast).label("assistencias"),
-        func.sum(StatsTotalRegularSeason.reb).label("rebotes"),
         func.sum(StatsTotalRegularSeason.min).label("minutos"),
+        func.sum(StatsTotalRegularSeason.fgm).label("arremessos_convertidos"),
+        func.sum(StatsTotalRegularSeason.fga).label("tentativas_arremessos"),
+        func.sum(StatsTotalRegularSeason.fg_pct).label("porcentagem_conversao_arremessos"),
+        func.sum(StatsTotalRegularSeason.fg3m).label("arremessos_3_pontos_convertidos")
+        func.sum(StatsTotalRegularSeason.fg3a).label("tentativas_arremessos_3_pontos"),
+        func.sum(StatsTotalRegularSeason.fg3_pct).label("porcentagem_conversao_arremessos_3_pontos"),
+        func.sum(StatsTotalRegularSeason.ftm).label("lances_livres_convertidos"),
+        func.sum(StatsTotalRegularSeason.fta).label("tentativas_lances_livres"),
+        func.sum(StatsTotalRegularSeason.ft_pct).label("porcentagem_conversao_lances_livres"),
+        func.sum(StatsTotalRegularSeason.oreb).label("rebotes_ofensivos"),
+        func.sum(StatsTotalRegularSeason.dreb).label("rebotes_defensivos"),
+        func.sum(StatsTotalRegularSeason.reb).label("total_rebotes"),
+        func.sum(StatsTotalRegularSeason.stl).label("roubos_bola"),
+        func.sum(StatsTotalRegularSeason.blk).label("bloqueios"),
+        func.sum(StatsTotalRegularSeason.tov).label("perdas_bola"),
         func.sum(StatsTotalRegularSeason.gs).label("jogos_iniciados"),
         func.sum(StatsTotalRegularSeason.gp).label("jogos_disputados")
        
@@ -72,8 +86,22 @@ async def estatistica_total_carreira(
     playoff_stats = session.query(
         func.sum(StatsTotalPlayoff.pts).label("pontos"),
         func.sum(StatsTotalPlayoff.ast).label("assistencias"),
-        func.sum(StatsTotalPlayoff.reb).label("rebotes"),
         func.sum(StatsTotalPlayoff.min).label("minutos"),
+        func.sum(StatsTotalPlayoff.fgm).label("arremessos_convertidos"),
+        func.sum(StatsTotalPlayoff.fga).label("tentativas_arremessos"),
+        func.sum(StatsTotalPlayoff.fg_pct).label("porcentagem_conversao_arremessos"),
+        func.sum(StatsTotalPlayoff.fg3m).label("arremessos_3_pontos_convertidos")
+        func.sum(StatsTotalPlayoff.fg3a).label("tentativas_arremessos_3_pontos"),
+        func.sum(StatsTotalPlayoff.fg3_pct).label("porcentagem_conversao_arremessos_3_pontos"),
+        func.sum(StatsTotalPlayoff.ftm).label("lances_livres_convertidos"),
+        func.sum(StatsTotalPlayoff.fta).label("tentativas_lances_livres"),
+        func.sum(StatsTotalPlayoff.ft_pct).label("porcentagem_conversao_lances_livres"),
+        func.sum(StatsTotalPlayoff.oreb).label("rebotes_ofensivos"),
+        func.sum(StatsTotalPlayoff.dreb).label("rebotes_defensivos"),
+        func.sum(StatsTotalPlayoff.reb).label("total_rebotes"),
+        func.sum(StatsTotalPlayoff.stl).label("roubos_bola"),
+        func.sum(StatsTotalPlayoff.blk).label("bloqueios"),
+        func.sum(StatsTotalPlayoff.tov).label("perdas_bola"),
         func.sum(StatsTotalPlayoff.gs).label("jogos_iniciados"),
         func.sum(StatsTotalPlayoff.gp).label("jogos_disputados")
         
@@ -85,8 +113,22 @@ async def estatistica_total_carreira(
     total_stats = {
         "pontos": (reg_stats.pontos or 0) + (playoff_stats.pontos or 0),
         "assistencias": (reg_stats.assistencias or 0) + (playoff_stats.assistencias or 0),
-        "rebotes": (reg_stats.rebotes or 0) + (playoff_stats.rebotes or 0),
         "minutos": (reg_stats.minutos or 0) + (playoff_stats.minutos or 0),
+        "arremessos_convertidos": (reg_stats.arremessos_convertidos or 0) + (playoff_stats.arremessos_convertidos or 0),
+        "tentativas_arremessos": (reg_stats.tentativas_arremessos or 0) + (playoff_stats.tentativas_arremessos or 0),
+        "porcentagem_conversao_arremessos": (reg_stats.porcentagem_conversao_arremessos or 0) + (playoff_stats.porcentagem_conversao_arremessos or 0),
+        "arremessos_3_pontos_convertidos": (reg_stats.arremessos_3_pontos_convertidos or 0) + (playoff_stats.arremessos_3_pontos_convertidos or 0),
+        "tentativas_arremessos_3_pontos": (reg_stats.tentativas_arremessos_3_pontos or 0) + (playoff_stats.tentativas_arremessos_3_pontos or 0),
+        "porcentagem_conversao_arremessos_3_pontos": (reg_stats.porcentagem_conversao_arremessos_3_pontos or 0) + (playoff_stats.porcentagem_conversao_arremessos_3_pontos or 0),
+        "lances_livres_convertidos": (reg_stats.lances_livres_convertidos or 0) + (playoff_stats.lances_livres_convertidos or 0),
+        "tentativas_lances_livres" (reg_stats.tentativas_lances_livres or 0) + (playoff_stats.tentativas_lances_livres or 0),
+        "porcentagem_conversao_lances_livres": (reg_stats.porcentagem_conversao_lances_livres or 0) + (playoff_stats.porcentagem_conversao_lances_livres or 0),
+        "rebotes_ofensivos": (reg_stats.rebotes_ofensivos or 0) + (playoff_stats.rebotes_ofensivos or 0),
+        "rebotes_defensivos": (reg_stats.rebotes_defensivos or 0) + (playoff_stats.rebotes_defensivos or 0),
+        "total_rebotes": (reg_stats.total_rebotes or 0) + (playoff_stats.total_rebotes or 0),
+        "roubos_bola": (reg_stats.roubos_bola or 0) + (playoff_stats.roubos_bola or 0),
+        "bloqueios": (reg_stats.bloqueios or 0) + (playoff_stats.bloqueios or 0),
+        "perdas_bola": (reg_stats.perdas_bola or 0) + (playoff_stats.perdas_bola or 0),
         "jogos_iniciados": (reg_stats.jogos_iniciados or 0) + (playoff_stats.jogos_iniciados or 0),
         "jogos_disputados": (reg_stats.jogos_disputados or 0) + (playoff_stats.jogos_disputados or 0),
     }
@@ -143,13 +185,13 @@ async def estatistica_playoff_jogador(
 async def ranking_estatisticas(
     season: str = Query(..., description="Ex: '2023-24'"),
     etapa: Literal["regular", "playoffs", "all"] = Query(..., description="Etapa da temporada"),
-    tipo_estatistica: Literal["pts", "ast", "reb", "min"] = Query(..., description="Métrica do ranking"),
+    tipo_estatistica: Literal["pts", "ast", "min", "fgm", "fga", "fg_pct", "fgm3", "fg3a", "fg3_pct", "ftm", "fta", "ft_pct", "oreb", "dreb", "reb", "stl", "blk", "tov"] = Query(..., description="Métrica do ranking"),
     limit: int = Query(10, description="Quantidade de jogadores no ranking"),
     session: Session = Depends(pegar_session),
     usuario: Usuario = Depends(verificar_token)
 ):
     
-    colunas_validas = ["pts", "ast", "reb", "min"]
+    colunas_validas = ["pts", "ast", "min", "fgm", "fga", "fg_pct", "fgm3", "fg3a", "fg3_pct", "ftm", "fta", "ft_pct", "oreb", "dreb", "reb", "stl", "blk", "tov"]
     if tipo_estatistica not in colunas_validas:
         raise HTTPException(status_code=400, detail="Estatística inválida.")
 
@@ -248,7 +290,7 @@ async def comparar_jogadores(
     perfis_dict = {p.nba_player_id: {"nome": p.nome_completo, "time": p.time_atual} for p in perfis}
 
 
-    metricas = ["gp", "gs", "min", "pts", "ast", "reb"]
+    metricas = ["pts", "ast", "min", "fgm", "fga", "fg_pct", "fgm3", "fg3a", "fg3_pct", "ftm", "fta", "ft_pct", "oreb", "dreb", "reb", "stl", "blk", "tov"]
     
     
     dados_jogadores = {
