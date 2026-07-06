@@ -4,7 +4,7 @@ from fastapi import Depends, HTTPException
 from jose import jwt, JWTError
 from api.config.config import SECRET_KEY, ALGORITHM, oauth2_schema
 
-def pegar_session():
+def pega_session():
     try:
         Session = sessionmaker(bind=db)
         session = Session()
@@ -12,7 +12,7 @@ def pegar_session():
     finally:
         session.close()
 
-def verificar_token(token: str = Depends(oauth2_schema), session: Session = Depends(pegar_session)):
+def verifica_token(token: str = Depends(oauth2_schema), session: Session = Depends(pega_session)):
     try:
         dic_info = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         id_usuario = dic_info.get('sub')
