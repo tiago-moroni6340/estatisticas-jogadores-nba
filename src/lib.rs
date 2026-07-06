@@ -1,9 +1,9 @@
 use reqwest::header::{
     HeaderMap, HeaderValue, ACCEPT, ACCEPT_LANGUAGE, CONNECTION, HOST, ORIGIN, REFERER, USER_AGENT,
 };
-use rusqlite::Connection;
 use std::error::Error;
 use std::time::Duration;
+use sqlx::PgPool;
 
 pub fn configurar_cliente_http() -> Result<reqwest::Client, Box<dyn Error>> {
     let mut headers = HeaderMap::new();
@@ -32,77 +32,76 @@ pub fn configurar_cliente_http() -> Result<reqwest::Client, Box<dyn Error>> {
     Ok(client)
 }
 
-pub fn criar_tabela_jogadores_ativos(conn: &Connection) -> Result<(), rusqlite::Error> {
-    conn.execute(
+pub async fn criar_tabela_jogadores_ativos(pool: &PgPool) -> Result<(), sqlx::Error> {
+    sqlx::query(
         "CREATE TABLE IF NOT EXISTS jogadores_ativos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nba_player_id INTEGER UNIQUE,
+            id SERIAL PRIMARY KEY,
+            nba_player_id BIGINT UNIQUE,
             nome_completo TEXT,
-            codigo_time INTEGER,
+            codigo_time BIGINT,
             abreviacao_time TEXT
-        )",
-        [],
-    )?;
+        )"
+    ).execute(pool).await?;
     Ok(())
 }
 
-pub fn criar_tabela_perfil(conn: &Connection) -> Result<(), rusqlite::Error> {
-    conn.execute(
+pub async fn criar_tabela_perfil(pool: &PgPool) -> Result<(), sqlx::Error> {
+    sqlx::query(
         "CREATE TABLE IF NOT EXISTS jogadores_perfil (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nba_player_id INTEGER UNIQUE,
+            id SERIAL PRIMARY KEY,
+            nba_player_id BIGINT UNIQUE,
             nome_completo TEXT, data_nascimento TEXT, escola TEXT, pais TEXT, 
             altura TEXT, peso TEXT, posicao TEXT, numero_camisa TEXT, 
             anos_experiencia TEXT, time_atual TEXT
-        )", [],
-    )?;
+        )"
+    ).execute(pool).await?;
     Ok(())
 }
 
-pub fn criar_tabelas_estatisticas(conn: &Connection) -> Result<(), rusqlite::Error> {
-    conn.execute(
+pub async fn criar_tabelas_estatisticas(pool: &PgPool) -> Result<(), sqlx::Error> {
+    sqlx::query(
         "CREATE TABLE IF NOT EXISTS stats_temporada_regular (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nba_player_id INTEGER, season_id TEXT, team_abbreviation TEXT,
-            player_age REAL, gp INTEGER, gs INTEGER, min INTEGER, pts INTEGER,
-            ast INTEGER, fgm INTEGER, fga INTEGER, fg_pct INTEGER, fg3m INTEGER, fg3a INTEGER, 
-            fg3_pct INTEGER, ftm INTEGER, fta INTEGER, ft_pct INTEGER,
-            oreb INTEGER, dreb INTEGER, reb INTEGER, stl INTEGER, blk INTEGER, tov INTEGER, fp INTEGER,
+            id SERIAL PRIMARY KEY,
+            nba_player_id BIGINT, season_id TEXT, team_abbreviation TEXT,
+            player_age DOUBLE PRECISION, gp BIGINT, gs BIGINT, min BIGINT, pts BIGINT,
+            ast BIGINT, fgm BIGINT, fga BIGINT, fg_pct DOUBLE PRECISION, fg3m BIGINT, fg3a BIGINT, 
+            fg3_pct DOUBLE PRECISION, ftm BIGINT, fta BIGINT, ft_pct DOUBLE PRECISION,
+            oreb BIGINT, dreb BIGINT, reb BIGINT, stl BIGINT, blk BIGINT, tov BIGINT, fp BIGINT,
             UNIQUE(nba_player_id, season_id, team_abbreviation)
-        )", [],
-    )?;
+        )"
+    ).execute(pool).await?;
 
-    conn.execute(
+    sqlx::query(
         "CREATE TABLE IF NOT EXISTS stats_playoffs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nba_player_id INTEGER, season_id TEXT, team_abbreviation TEXT,
-            player_age REAL, gp INTEGER, gs INTEGER, min INTEGER, pts INTEGER,
-            ast INTEGER, fgm INTEGER, fga INTEGER, fg_pct INTEGER, fg3m INTEGER, fg3a INTEGER, 
-            fg3_pct INTEGER, ftm INTEGER, fta INTEGER, ft_pct INTEGER,
-            oreb INTEGER, dreb INTEGER, reb INTEGER, stl INTEGER, blk INTEGER, tov INTEGER, fp INTEGER,
+            id SERIAL PRIMARY KEY,
+            nba_player_id BIGINT, season_id TEXT, team_abbreviation TEXT,
+            player_age DOUBLE PRECISION, gp BIGINT, gs BIGINT, min BIGINT, pts BIGINT,
+            ast BIGINT, fgm BIGINT, fga BIGINT, fg_pct DOUBLE PRECISION, fg3m BIGINT, fg3a BIGINT, 
+            fg3_pct DOUBLE PRECISION, ftm BIGINT, fta BIGINT, ft_pct DOUBLE PRECISION,
+            oreb BIGINT, dreb BIGINT, reb BIGINT, stl BIGINT, blk BIGINT, tov BIGINT, fp BIGINT,
             UNIQUE(nba_player_id, season_id, team_abbreviation)
-        )", [],
-    )?;
+        )"
+    ).execute(pool).await?;
 
-    conn.execute(
+    sqlx::query(
         "CREATE TABLE IF NOT EXISTS totais_carreira_regular (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nba_player_id INTEGER, gp INTEGER, gs INTEGER, min INTEGER, pts INTEGER,
-            ast INTEGER, fgm INTEGER, fga INTEGER, fg_pct INTEGER, fg3m INTEGER, fg3a INTEGER, 
-            fg3_pct INTEGER, ftm INTEGER, fta INTEGER, ft_pct INTEGER,
-            oreb INTEGER, dreb INTEGER, reb INTEGER, stl INTEGER, blk INTEGER, tov INTEGER, fp INTEGER
-        )", [],
-    )?;
+            id SERIAL PRIMARY KEY,
+            nba_player_id BIGINT UNIQUE, gp BIGINT, gs BIGINT, min BIGINT, pts BIGINT,
+            ast BIGINT, fgm BIGINT, fga BIGINT, fg_pct DOUBLE PRECISION, fg3m BIGINT, fg3a BIGINT, 
+            fg3_pct DOUBLE PRECISION, ftm BIGINT, fta BIGINT, ft_pct DOUBLE PRECISION,
+            oreb BIGINT, dreb BIGINT, reb BIGINT, stl BIGINT, blk BIGINT, tov BIGINT, fp BIGINT
+        )"
+    ).execute(pool).await?;
 
-    conn.execute(
+    sqlx::query(
         "CREATE TABLE IF NOT EXISTS totais_carreira_playoffs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nba_player_id INTEGER, gp INTEGER, gs INTEGER, min INTEGER, pts INTEGER,
-            ast INTEGER, fgm INTEGER, fga INTEGER, fg_pct INTEGER, fg3m INTEGER, fg3a INTEGER, 
-            fg3_pct INTEGER, ftm INTEGER, fta INTEGER, ft_pct INTEGER,
-            oreb INTEGER, dreb INTEGER, reb INTEGER, stl INTEGER, blk INTEGER, tov INTEGER, fp INTEGER
-        )", [],
-    )?;
+            id SERIAL PRIMARY KEY,
+            nba_player_id BIGINT UNIQUE, gp BIGINT, gs BIGINT, min BIGINT, pts BIGINT,
+            ast BIGINT, fgm BIGINT, fga BIGINT, fg_pct DOUBLE PRECISION, fg3m BIGINT, fg3a BIGINT, 
+            fg3_pct DOUBLE PRECISION, ftm BIGINT, fta BIGINT, ft_pct DOUBLE PRECISION,
+            oreb BIGINT, dreb BIGINT, reb BIGINT, stl BIGINT, blk BIGINT, tov BIGINT, fp BIGINT
+        )"
+    ).execute(pool).await?;
 
     Ok(())
 }
