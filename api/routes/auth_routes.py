@@ -11,12 +11,12 @@ from fastapi.security import OAuth2PasswordRequestForm
 auth_router = APIRouter(prefix='/auth', tags=['auth'])
 
 @auth_router.post('/criar_conta')
-async def cria_conta(usuario_schema: UsuarioSchema, session: Session = Depends(pegar_session)):
+async def criar_conta(usuario_schema: UsuarioSchema, session: Session = Depends(pegar_session)):
     usuario = session.query(Usuario).filter(Usuario.email == usuario_schema.email).first()
     if usuario:
         raise HTTPException(status_code=400, detail='Email de usuário já cadastrado')
     
-    if not valida_senha(usuario_schema.senha):
+    if not validar_senha(usuario_schema.senha):
         raise HTTPException(status_code=400, detail='Senha deve conter entre 8 a 25 caracteres, pelo menos 1 letra maiúscula, 1 número e 1 caractere especial')
 
     if usuario_schema.senha != usuario_schema.confirmacao_senha:
