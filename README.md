@@ -51,16 +51,16 @@ A comunicação entre a API Python e os módulos Rust é feita via subprocessos 
 
 ### 1. Clonando e Configurando o Ambiente
 
-# Clone o repositório
+**Clone o repositório
 git clone <url-do-repositorio>
 cd estatisticas-jogadores-nba
 
-# Crie e ative um ambiente virtual Python
+**Crie e ative um ambiente virtual Python
 python -m venv venv
 source venv/bin/activate  # Linux/Mac
 venv\Scripts\activate  # Windows
 
-# Instale as dependências do Python
+**Instale as dependências do Python
 pip install -e .
 
 ### 2. Compilando os Módulos em Rust
