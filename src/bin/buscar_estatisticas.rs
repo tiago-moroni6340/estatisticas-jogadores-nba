@@ -1,38 +1,39 @@
-use rusqlite::{params, Connection};
+
+use sqlx::postgres::PgPoolOptions;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::error::Error;
 use std::time::{Duration, Instant}; 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use futures::stream::{self, StreamExt}; 
+use std::env;
 
 use nba_stats::{configurar_cliente_http, criar_tabelas_estatisticas};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    dotenvy::dotenv().ok();
+    
     let inicio_pipeline = Instant::now();
     println!("Iniciando pipeline de ESTATÍSTICAS da NBA...");
 
-    let conn = Connection::open(r"C:\Users\moron\Documents\nba_stats\nba_dados.db")?;
-    criar_tabelas_estatisticas(&conn)?;
+    let db_url = env::var("DATABASE_URL").expect("A variável de ambiente DATABASE_URL não foi definida no arquivo .env");
+    let pool = PgPoolOptions::new().max_connections(5).connect(db_url).await?;
     
-    let conn_compartilhada = Arc::new(Mutex::new(conn));
+    criar_tabelas_estatisticas(&pool).await?;
+    
     let client = Arc::new(configurar_cliente_http()?);
 
     loop {
-        let jogadores: Vec<(i64, String)> = {
-            let de_fato_conn = conn_compartilhada.lock().unwrap();
-            let mut stmt = de_fato_conn.prepare(
-                "SELECT j.nba_player_id, j.nome_completo 
-                 FROM jogadores_ativos j
-                 LEFT JOIN totais_carreira_regular t ON j.nba_player_id = t.nba_player_id
-                 WHERE t.nba_player_id IS NULL
-                 LIMIT 10"
-            )?;
-            stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
-                .filter_map(Result::ok)
-                .collect()
-        };
+        let jogadores: Vec<(i64, String)> = sqlx::query_as::<_, (i64, String)>(
+            "SELECT j.nba_player_id, j.nome_completo 
+             FROM jogadores_ativos j
+             LEFT JOIN totais_carreira_regular t ON j.nba_player_id = t.nba_player_id
+             WHERE t.nba_player_id IS NULL
+             LIMIT 10"
+        )
+        .fetch_all(&pool)
+        .await?;
 
         if jogadores.is_empty() {
             println!("\n[FIM] Todas as estatísticas foram processadas!");
@@ -44,7 +45,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         let processamento_stream = stream::iter(jogadores).map(|(player_id, nome)| {
             let client = Arc::clone(&client);
-            let conn = Arc::clone(&conn_compartilhada);
+            let pool = pool.clone();
 
             async move {
                 println!(">>> [Stats] Buscando: {} (ID: {})", nome, player_id);
@@ -62,8 +63,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         if status.is_success() {
                             match resp.json::<Value>().await {
                                 Ok(json_stats) => {
-                                    let mut de_fato_conn = conn.lock().unwrap();
-                                    if let Err(e) = salvar_estatisticas(&mut de_fato_conn, &json_stats) {
+                                    if let Err(e) = salvar_estatisticas(&pool, &json_stats).await {
                                         eprintln!(">>> [Erro DB] Falha ao salvar banco para {}: {}", nome, e);
                                     } else {
                                         println!(">>> [Sucesso] Salvo: {}", nome);
@@ -72,7 +72,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                 Err(e) => eprintln!(">>> [Erro JSON] Falha de conversão para {}: {}", nome, e),
                             }
                         } else if status.as_u16() == 429 {
-                            eprintln!(">>> [429 Rate Limit] Limite estourado buscando {}! (O proxy pode estar desgastado)", nome);
+                            eprintln!(">>> [429 Rate Limit] Limite estourado buscando {}!", nome);
                         } else if status.as_u16() == 403 {
                             eprintln!(">>> [403 Forbidden] IP bloqueado pela NBA buscando {}!", nome);
                         } else {
@@ -84,7 +84,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     }
                 }
                 
-                // Pequena pausa para aliviar a carga no proxy
                 tokio::time::sleep(Duration::from_millis(500)).await;
             }
         }).buffer_unordered(limite_concorrencia);
@@ -99,8 +98,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn salvar_estatisticas(conn: &mut Connection, json: &Value) -> Result<(), Box<dyn Error>> {
-    let tx = conn.transaction()?; 
+async fn salvar_estatisticas(pool: &sqlx::PgPool, json: &Value) -> Result<(), Box<dyn Error>> {
+    let mut tx = pool.begin().await?; 
     
     if let Some(result_sets) = json["resultSets"].as_array() {
         for subset in result_sets {
@@ -116,146 +115,148 @@ fn salvar_estatisticas(conn: &mut Connection, json: &Value) -> Result<(), Box<dy
             match nome_tabela {
                 "SeasonTotalsRegularSeason" => {
                     for row in rows.iter().filter_map(|r| r.as_array()) {
-                        tx.execute(
-                            "INSERT OR REPLACE INTO stats_temporada_regular 
+                        sqlx::query(
+                            "INSERT INTO stats_temporada_regular 
                              (nba_player_id, season_id, team_abbreviation, player_age, gp, gs, min, pts, ast, fgm, fga, fg_pct, fg3m, fg3a, fg3_pct, ftm, fta, ft_pct, oreb, dreb, reb, stl, blk, tov, pf)
-                             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25)",
-                            params![
-                                row[achar_idx("PLAYER_ID")].as_i64().unwrap_or(0),
-                                row[achar_idx("SEASON_ID")].as_str().unwrap_or(""),
-                                row[achar_idx("TEAM_ABBREVIATION")].as_str().unwrap_or(""),
-                                row[achar_idx("PLAYER_AGE")].as_f64().unwrap_or(0.0),
-                                row[achar_idx("GP")].as_i64().unwrap_or(0),
-                                row[achar_idx("GS")].as_i64().unwrap_or(0),
-                                row[achar_idx("MIN")].as_i64().unwrap_or(0),
-                                row[achar_idx("PTS")].as_i64().unwrap_or(0),
-                                row[achar_idx("AST")].as_i64().unwrap_or(0),
-                                row[achar_idx("FGM")].as_i64().unwrap_or(0),
-                                row[achar_idx("FGA")].as_i64().unwrap_or(0),
-                                row[achar_idx("FG_PCT")].as_i64().unwrap_or(0),
-                                row[achar_idx("FG3M")].as_i64().unwrap_or(0),
-                                row[achar_idx("FG3A")].as_i64().unwrap_or(0),
-                                row[achar_idx("FG3_PCT")].as_i64().unwrap_or(0),
-                                row[achar_idx("FTM")].as_i64().unwrap_or(0),
-                                row[achar_idx("FTA")].as_i64().unwrap_or(0),
-                                row[achar_idx("FT_PCT")].as_i64().unwrap_or(0),
-                                row[achar_idx("OREB")].as_i64().unwrap_or(0),
-                                row[achar_idx("DREB")].as_i64().unwrap_or(0),
-                                row[achar_idx("REB")].as_i64().unwrap_or(0),
-                                row[achar_idx("STL")].as_i64().unwrap_or(0),
-                                row[achar_idx("BLK")].as_i64().unwrap_or(0),
-                                row[achar_idx("TOV")].as_i64().unwrap_or(0),
-                                row[achar_idx("PF")].as_i64().unwrap_or(0),
-                            ],
-                        )?;
-                    }
-                }
-                "SeasonTotalsPostSeason" => {
-                    for row in rows.iter().filter_map(|r| r.as_array()) {
-                        tx.execute(
-                            "INSERT OR REPLACE INTO stats_playoffs 
-                             (nba_player_id, season_id, team_abbreviation, player_age, gp, gs, min, pts, ast, fgm, fga, fg_pct, fg3m, fg3a, fg3_pct, ftm, fta, ft_pct, oreb, dreb, reb, stl, blk, tov, pf)
-                             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25)",
-                            params![
-                                row[achar_idx("PLAYER_ID")].as_i64().unwrap_or(0),
-                                row[achar_idx("SEASON_ID")].as_str().unwrap_or(""),
-                                row[achar_idx("TEAM_ABBREVIATION")].as_str().unwrap_or(""),
-                                row[achar_idx("PLAYER_AGE")].as_f64().unwrap_or(0.0),
-                                row[achar_idx("GP")].as_i64().unwrap_or(0),
-                                row[achar_idx("GS")].as_i64().unwrap_or(0),
-                                row[achar_idx("MIN")].as_i64().unwrap_or(0),
-                                row[achar_idx("PTS")].as_i64().unwrap_or(0),
-                                row[achar_idx("AST")].as_i64().unwrap_or(0),
-                                row[achar_idx("FGM")].as_i64().unwrap_or(0),
-                                row[achar_idx("FGA")].as_i64().unwrap_or(0),
-                                row[achar_idx("FG_PCT")].as_i64().unwrap_or(0),
-                                row[achar_idx("FG3M")].as_i64().unwrap_or(0),
-                                row[achar_idx("FG3A")].as_i64().unwrap_or(0),
-                                row[achar_idx("FG3_PCT")].as_i64().unwrap_or(0),
-                                row[achar_idx("FTM")].as_i64().unwrap_or(0),
-                                row[achar_idx("FTA")].as_i64().unwrap_or(0),
-                                row[achar_idx("FT_PCT")].as_i64().unwrap_or(0),
-                                row[achar_idx("OREB")].as_i64().unwrap_or(0),
-                                row[achar_idx("DREB")].as_i64().unwrap_or(0),
-                                row[achar_idx("REB")].as_i64().unwrap_or(0),
-                                row[achar_idx("STL")].as_i64().unwrap_or(0),
-                                row[achar_idx("BLK")].as_i64().unwrap_or(0),
-                                row[achar_idx("TOV")].as_i64().unwrap_or(0),
-                                row[achar_idx("PF")].as_i64().unwrap_or(0),
-                            ],
-                        )?;
+                             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
+                             ON CONFLICT (nba_player_id, season_id, team_abbreviation) DO UPDATE SET 
+                             player_age = EXCLUDED.player_age, gp = EXCLUDED.gp, gs = EXCLUDED.gs, min = EXCLUDED.min, pts = EXCLUDED.pts, ast = EXCLUDED.ast, fgm = EXCLUDED.fgm, fga = EXCLUDED.fga, fg_pct = EXCLUDED.fg_pct, fg3m = EXCLUDED.fg3m, fg3a = EXCLUDED.fg3a, fg3_pct = EXCLUDED.fg3_pct, ftm = EXCLUDED.ftm, fta = EXCLUDED.fta, ft_pct = EXCLUDED.ft_pct, oreb = EXCLUDED.oreb, dreb = EXCLUDED.dreb, reb = EXCLUDED.reb, stl = EXCLUDED.stl, blk = EXCLUDED.blk, tov = EXCLUDED.tov, pf = EXCLUDED.pf"
+                        )
+                        .bind(row[achar_idx("PLAYER_ID")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("SEASON_ID")].as_str().unwrap_or(""))
+                        .bind(row[achar_idx("TEAM_ABBREVIATION")].as_str().unwrap_or(""))
+                        .bind(row[achar_idx("PLAYER_AGE")].as_f64().unwrap_or(0.0))
+                        .bind(row[achar_idx("GP")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("GS")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("MIN")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("PTS")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("AST")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("FGM")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("FGA")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("FG_PCT")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("FG3M")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("FG3A")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("FG3_PCT")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("FTM")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("FTA")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("FT_PCT")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("OREB")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("DREB")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("REB")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("STL")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("BLK")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("TOV")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("PF")].as_i64().unwrap_or(0))
+                        .execute(&mut *tx).await?;
                     }
                 }
                 "CareerTotalsRegularSeason" => {
                     if let Some(row) = rows.get(0).and_then(|r| r.as_array()) {
-                        tx.execute(
-                            "INSERT OR REPLACE INTO totais_carreira_regular 
-                             (nba_player_id, gp, gs, min, pts, ast, fgm, fga, fg_pct, fg3m, fg3a, fg3_pct, ftm, fta, ft_pct, oreb, dreb, reb, stl, blk, tov, fp)
-                             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)",
-                            params![
-                                row[achar_idx("PLAYER_ID")].as_i64().unwrap_or(0),
-                                row[achar_idx("GP")].as_i64().unwrap_or(0),
-                                row[achar_idx("GS")].as_i64().unwrap_or(0),
-                                row[achar_idx("MIN")].as_i64().unwrap_or(0),
-                                row[achar_idx("PTS")].as_i64().unwrap_or(0),
-                                row[achar_idx("AST")].as_i64().unwrap_or(0),
-                                row[achar_idx("FGM")].as_i64().unwrap_or(0),
-                                row[achar_idx("FGA")].as_i64().unwrap_or(0),
-                                row[achar_idx("FG_PCT")].as_i64().unwrap_or(0),
-                                row[achar_idx("FG3M")].as_i64().unwrap_or(0),
-                                row[achar_idx("FG3A")].as_i64().unwrap_or(0),
-                                row[achar_idx("FG3_PCT")].as_i64().unwrap_or(0),
-                                row[achar_idx("FTM")].as_i64().unwrap_or(0),
-                                row[achar_idx("FTA")].as_i64().unwrap_or(0),
-                                row[achar_idx("FT_PCT")].as_i64().unwrap_or(0),
-                                row[achar_idx("OREB")].as_i64().unwrap_or(0),
-                                row[achar_idx("DREB")].as_i64().unwrap_or(0),
-                                row[achar_idx("REB")].as_i64().unwrap_or(0),
-                                row[achar_idx("STL")].as_i64().unwrap_or(0),
-                                row[achar_idx("BLK")].as_i64().unwrap_or(0),
-                                row[achar_idx("TOV")].as_i64().unwrap_or(0),
-                                row[achar_idx("PF")].as_i64().unwrap_or(0),
-                            ],
-                        )?;
+                        sqlx::query(
+                            "INSERT INTO totais_carreira_regular 
+                             (nba_player_id, gp, gs, min, pts, ast, fgm, fga, fg_pct, fg3m, fg3a, fg3_pct, ftm, fta, ft_pct, oreb, dreb, reb, stl, blk, tov, pf)
+                             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+                             ON CONFLICT (nba_player_id) DO UPDATE SET gp = EXCLUDED.gp, gs = EXCLUDED.gs, min = EXCLUDED.min, pts = EXCLUDED.pts, ast = EXCLUDED.ast, fgm = EXCLUDED.fgm, fga = EXCLUDED.fga, fg_pct = EXCLUDED.fg_pct, fg3m = EXCLUDED.fg3m, fg3a = EXCLUDED.fg3a, fg3_pct = EXCLUDED.fg3_pct, ftm = EXCLUDED.ftm, fta = EXCLUDED.fta, ft_pct = EXCLUDED.ft_pct, oreb = EXCLUDED.oreb, dreb = EXCLUDED.dreb, reb = EXCLUDED.reb, stl = EXCLUDED.stl, blk = EXCLUDED.blk, tov = EXCLUDED.tov, pf = EXCLUDED.pf"
+                        )
+                        .bind(row[achar_idx("PLAYER_ID")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("GP")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("GS")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("MIN")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("PTS")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("AST")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("FGM")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("FGA")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("FG_PCT")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("FG3M")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("FG3A")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("FG3_PCT")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("FTM")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("FTA")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("FT_PCT")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("OREB")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("DREB")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("REB")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("STL")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("BLK")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("TOV")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("PF")].as_i64().unwrap_or(0))
+                        .execute(&mut *tx).await?;
                     }
                 }
-                "CareerTotalsPostSeason" => {
+                "SeasonTotalsPostSeason" => {
+                    for row in rows.iter().filter_map(|r| r.as_array()) {
+                        sqlx::query(
+                            "INSERT INTO stats_playoffs
+                             (nba_player_id, season_id, team_abbreviation, player_age, gp, gs, min, pts, ast, fgm, fga, fg_pct, fg3m, fg3a, fg3_pct, ftm, fta, ft_pct, oreb, dreb, reb, stl, blk, tov, pf)
+                             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
+                             ON CONFLICT (nba_player_id, season_id, team_abbreviation) DO UPDATE SET 
+                             player_age = EXCLUDED.player_age, gp = EXCLUDED.gp, gs = EXCLUDED.gs, min = EXCLUDED.min, pts = EXCLUDED.pts, ast = EXCLUDED.ast, fgm = EXCLUDED.fgm, fga = EXCLUDED.fga, fg_pct = EXCLUDED.fg_pct, fg3m = EXCLUDED.fg3m, fg3a = EXCLUDED.fg3a, fg3_pct = EXCLUDED.fg3_pct, ftm = EXCLUDED.ftm, fta = EXCLUDED.fta, ft_pct = EXCLUDED.ft_pct, oreb = EXCLUDED.oreb, dreb = EXCLUDED.dreb, reb = EXCLUDED.reb, stl = EXCLUDED.stl, blk = EXCLUDED.blk, tov = EXCLUDED.tov, pf = EXCLUDED.pf"
+                        )
+                        .bind(row[achar_idx("PLAYER_ID")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("SEASON_ID")].as_str().unwrap_or(""))
+                        .bind(row[achar_idx("TEAM_ABBREVIATION")].as_str().unwrap_or(""))
+                        .bind(row[achar_idx("PLAYER_AGE")].as_f64().unwrap_or(0.0))
+                        .bind(row[achar_idx("GP")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("GS")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("MIN")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("PTS")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("AST")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("FGM")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("FGA")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("FG_PCT")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("FG3M")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("FG3A")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("FG3_PCT")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("FTM")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("FTA")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("FT_PCT")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("OREB")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("DREB")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("REB")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("STL")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("BLK")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("TOV")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("PF")].as_i64().unwrap_or(0))
+                        .execute(&mut *tx).await?;
+                    }
+                }
+                "CareerTotalsRegularSeason" => {
                     if let Some(row) = rows.get(0).and_then(|r| r.as_array()) {
-                        tx.execute(
-                            "INSERT OR REPLACE INTO totais_carreira_playoffs 
-                             (nba_player_id, gp, gs, min, pts, ast, fgm, fga, fg_pct, fg3m, fg3a, fg3_pct, ftm, fta, ft_pct, oreb, dreb, reb, stl, blk, tov, fp)
-                             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)",
-                            params![
-                                row[achar_idx("PLAYER_ID")].as_i64().unwrap_or(0),
-                                row[achar_idx("GP")].as_i64().unwrap_or(0),
-                                row[achar_idx("GS")].as_i64().unwrap_or(0),
-                                row[achar_idx("MIN")].as_i64().unwrap_or(0),
-                                row[achar_idx("PTS")].as_i64().unwrap_or(0),
-                                row[achar_idx("AST")].as_i64().unwrap_or(0),
-                                row[achar_idx("FGM")].as_i64().unwrap_or(0),
-                                row[achar_idx("FGA")].as_i64().unwrap_or(0),
-                                row[achar_idx("FG_PCT")].as_i64().unwrap_or(0),
-                                row[achar_idx("FG3M")].as_i64().unwrap_or(0),
-                                row[achar_idx("FG3A")].as_i64().unwrap_or(0),
-                                row[achar_idx("FG3_PCT")].as_i64().unwrap_or(0),
-                                row[achar_idx("FTM")].as_i64().unwrap_or(0),
-                                row[achar_idx("FTA")].as_i64().unwrap_or(0),
-                                row[achar_idx("FT_PCT")].as_i64().unwrap_or(0),
-                                row[achar_idx("OREB")].as_i64().unwrap_or(0),
-                                row[achar_idx("DREB")].as_i64().unwrap_or(0),
-                                row[achar_idx("REB")].as_i64().unwrap_or(0),
-                                row[achar_idx("STL")].as_i64().unwrap_or(0),
-                                row[achar_idx("BLK")].as_i64().unwrap_or(0),
-                                row[achar_idx("TOV")].as_i64().unwrap_or(0),
-                                row[achar_idx("PF")].as_i64().unwrap_or(0),
-                            ],
-                        )?;
+                        sqlx::query(
+                            "INSERT INTO totais_carreira_playoffs
+                             (nba_player_id, gp, gs, min, pts, ast, fgm, fga, fg_pct, fg3m, fg3a, fg3_pct, ftm, fta, ft_pct, oreb, dreb, reb, stl, blk, tov, pf)
+                             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+                             ON CONFLICT (nba_player_id) DO UPDATE SET gp = EXCLUDED.gp, gs = EXCLUDED.gs, min = EXCLUDED.min, pts = EXCLUDED.pts, ast = EXCLUDED.ast, fgm = EXCLUDED.fgm, fga = EXCLUDED.fga, fg_pct = EXCLUDED.fg_pct, fg3m = EXCLUDED.fg3m, fg3a = EXCLUDED.fg3a, fg3_pct = EXCLUDED.fg3_pct, ftm = EXCLUDED.ftm, fta = EXCLUDED.fta, ft_pct = EXCLUDED.ft_pct, oreb = EXCLUDED.oreb, dreb = EXCLUDED.dreb, reb = EXCLUDED.reb, stl = EXCLUDED.stl, blk = EXCLUDED.blk, tov = EXCLUDED.tov, pf = EXCLUDED.pf"
+                        )
+                        .bind(row[achar_idx("PLAYER_ID")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("GP")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("GS")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("MIN")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("PTS")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("AST")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("FGM")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("FGA")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("FG_PCT")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("FG3M")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("FG3A")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("FG3_PCT")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("FTM")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("FTA")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("FT_PCT")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("OREB")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("DREB")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("REB")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("STL")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("BLK")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("TOV")].as_i64().unwrap_or(0))
+                        .bind(row[achar_idx("PF")].as_i64().unwrap_or(0))
+                        .execute(&mut *tx).await?;
                     }
                 }
                 _ => {}
             }
         }
     }
-    tx.commit()?;
+    tx.commit().await?;
     Ok(())
 }
