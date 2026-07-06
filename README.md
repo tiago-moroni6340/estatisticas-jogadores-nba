@@ -51,7 +51,6 @@ A comunicação entre a API Python e os módulos Rust é feita via subprocessos 
 
 ### 1. Clonando e Configurando o Ambiente
 
-```bash
 # Clone o repositório
 git clone <url-do-repositorio>
 cd estatisticas-jogadores-nba
@@ -64,14 +63,14 @@ venv\Scripts\activate  # Windows
 # Instale as dependências do Python
 pip install -e .
 
-2. Compilando os Módulos em Rust
+### 2. Compilando os Módulos em Rust
 Os binários de extração precisam ser compilados antes de executar a API.
 
 Bash
 cargo build --release
 Isso irá gerar os binários na pasta target/release/, que serão invocados pela API Python.
 
-3. Variáveis de Ambiente
+### 3. Variáveis de Ambiente
 Crie um arquivo .env na raiz do projeto contendo as seguintes variáveis:
 
 Ini, TOML
@@ -86,7 +85,7 @@ DATABASE_URL_RUST=postgres://usuario:senha@localhost:5432/nba_db
 
 # Integração Email (Opcional, conforme uso no código)
 RESEND_API_KEY=sua_chave_resend
-4. Executando a API
+### 4. Executando a API
 Inicie o servidor localmente com Uvicorn:
 
 Bash
@@ -124,7 +123,7 @@ POST /update_db/profiles: Atualiza os dados biográficos dos jogadores.
 
 POST /update_db/statistics: Baixa e sincroniza as estatísticas pendentes de carreira.
 
-👨‍💻 Autores
+### 👨‍💻 Autores
 Tiago Moroni Silva Ferreira
 
 Thiago Ianarelli Linhares Couto
