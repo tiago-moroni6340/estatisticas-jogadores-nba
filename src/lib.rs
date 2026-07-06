@@ -67,7 +67,7 @@ pub fn criar_tabelas_estatisticas(conn: &Connection) -> Result<(), rusqlite::Err
             player_age REAL, gp INTEGER, gs INTEGER, min INTEGER, pts INTEGER,
             ast INTEGER, fgm INTEGER, fga INTEGER, fg_pct INTEGER, fg3m INTEGER, fg3a INTEGER, 
             fg3_pct INTEGER, ftm INTEGER, fta INTEGER, ft_pct INTEGER,
-            oreb INTEGER, dreb INTEGER, reb INTEGER, stl INTEGER, blk INTEGER, tov INTEGER, pf INTEGER,
+            oreb INTEGER, dreb INTEGER, reb INTEGER, stl INTEGER, blk INTEGER, tov INTEGER, fp INTEGER,
             UNIQUE(nba_player_id, season_id, team_abbreviation)
         )", [],
     )?;
@@ -79,7 +79,7 @@ pub fn criar_tabelas_estatisticas(conn: &Connection) -> Result<(), rusqlite::Err
             player_age REAL, gp INTEGER, gs INTEGER, min INTEGER, pts INTEGER,
             ast INTEGER, fgm INTEGER, fga INTEGER, fg_pct INTEGER, fg3m INTEGER, fg3a INTEGER, 
             fg3_pct INTEGER, ftm INTEGER, fta INTEGER, ft_pct INTEGER,
-            oreb INTEGER, dreb INTEGER, reb INTEGER, stl INTEGER, blk INTEGER, tov INTEGER, pf INTEGER,
+            oreb INTEGER, dreb INTEGER, reb INTEGER, stl INTEGER, blk INTEGER, tov INTEGER, fp INTEGER,
             UNIQUE(nba_player_id, season_id, team_abbreviation)
         )", [],
     )?;

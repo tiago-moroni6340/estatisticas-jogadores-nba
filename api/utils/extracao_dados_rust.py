@@ -1,5 +1,6 @@
 import asyncio
 import json
+import subprocess
 from datetime import datetime
 from cachetools import TTLCache
 from sqlalchemy.orm import Session
@@ -27,45 +28,42 @@ rotinas_em_execucao = {
 def resource_path(*path_segments: str) -> Path:
     """
     Retorna o caminho absoluto para um recurso baseado na raiz do projeto.
-    
-    Aceita múltiplos argumentos (como strings), simulando o os.path.join.
     """
-    # Define a raiz base (onde este script de utilidade está)
-    # Se esta função estiver em 'utils/helpers.py', o .parent vai para 'utils/'
-    # e o segundo .parent vai para a raiz do projeto. Ajuste conforme sua estrutura.
-    BASE_DIR = Path(__file__).resolve().parent
+    # .parents[2] sobe 3 níveis:
+    # [0] = utils -> [1] = api -> [2] = nba_stats (raiz)
+    BASE_DIR = Path(__file__).resolve().parents[2]
     
-    # Junta a base com os segmentos passados na função
-    resource_path = BASE_DIR.joinpath(*path_segments)
-    
-    return resource_path
+    # Junta a base com os segmentos
+    return BASE_DIR.joinpath(*path_segments)
 
 async def executar_rust_partidas(data_str: str) -> list:
     """Executa o binário compilado em Rust e captura o JSON retornado no stdout."""
     if data_str in datas_em_execucao:
         print(f"[{datetime.now()}] Aviso: Extração para {data_str} já está rodando. Pulando.")
         return []
-    
-    
 
     try:
-        caminho_modulo_rust = resource_path("target\release\buscar_partidas.exe")
+        caminho_modulo_rust = resource_path("target", "release", "buscar_partidas.exe")
 
         datas_em_execucao.add(data_str)
-        process = await asyncio.create_subprocess_exec(
-            caminho_modulo_rust, 
-            data_str,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
-        )
-        
-        stdout, stderr = await process.communicate()
+        # Função síncrona empacotada
+        def rodar_subprocesso():
+            return subprocess.run(
+                [str(caminho_modulo_rust), data_str],
+                capture_output=True,
+                text=True, # Já retorna as strings decodificadas
+                encoding="utf-8",
+                check=False
+            )
+
+        # Roda a função síncrona em uma thread separada de forma assíncrona
+        process = await asyncio.to_thread(rodar_subprocesso)
         
         if process.returncode != 0:
-            print(f"Erro no módulo Rust: {stderr.decode().strip()}")
+            print(f"Erro no módulo Rust: {process.stderr.strip()}")
             return []
             
-        saida = stdout.decode().strip()
+        saida = process.stdout.strip()
         if not saida or saida == "[]":
             return []
             
@@ -89,27 +87,28 @@ async def executar_rust_linha_tempo(player_id: int, temporada: str = "2025-26") 
     try:
         jogadores_em_execucao.add(chave_execucao)
         
-        
         player_id_str = str(player_id)
         
-     
-        caminho_modulo_rust = resource_path("target\release\buscar_historico_partidas_jogadores.exe")
+        caminho_modulo_rust = resource_path("target", "release", "buscar_historico_partidas_jogadores.exe")
+
+        def rodar_subprocesso():
+            return subprocess.run(
+                [str(caminho_modulo_rust), player_id_str, temporada],
+                capture_output=True,
+                text=True, # Já retorna as strings decodificadas
+                encoding="utf-8",
+                check=False
+            )
+
+        # Roda a função síncrona em uma thread separada de forma assíncrona
+        process = await asyncio.to_thread(rodar_subprocesso)
         
-        process = await asyncio.create_subprocess_exec(
-            caminho_modulo_rust, 
-            player_id_str,
-            temporada,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
-        )
-        
-        stdout, stderr = await process.communicate()
         
         if process.returncode != 0:
-            print(f"Erro no módulo Rust (Linha do Tempo): {stderr.decode().strip()}")
+            print(f"Erro no módulo Rust (Linha do Tempo): {process.stderr.strip()}")
             return {}
             
-        saida = stdout.decode().strip()
+        saida = process.stdout.strip()
         if not saida or saida == "[]":
             return {}
             
@@ -123,25 +122,27 @@ async def executar_rust_buscar_jogadores() -> dict:
     if rotinas_em_execucao["jogadores"]:
         return {"status": "ocupado", "mensagem": "A atualização de jogadores já está em andamento."}
     
-    
-    
     try:
         rotinas_em_execucao["jogadores"] = True
-        caminho_modulo_rust = resource_path("target\release\buscar_jogadores.exe")
-        
-        process = await asyncio.create_subprocess_exec(
-            caminho_modulo_rust,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
-        )
-        
-        stdout, stderr = await process.communicate()
+        caminho_modulo_rust = resource_path("target", "release", "buscar_jogadores.exe")
+
+        def rodar_subprocesso():
+            return subprocess.run(
+                [str(caminho_modulo_rust)],
+                capture_output=True,
+                text=True,
+                encoding="utf-8", 
+                check=False
+            )
+
+        # Roda a função síncrona em uma thread separada de forma assíncrona
+        process = await asyncio.to_thread(rodar_subprocesso)
         
         if process.returncode != 0:
-            print(f"Erro no módulo Rust (Jogadores): {stderr.decode().strip()}")
-            return {"status": "erro", "detalhe": stderr.decode().strip()}
+            print(f"Erro no módulo Rust (Jogadores): {process.stderr.strip()}")
+            return {"status": "erro", "detalhe": process.stderr.strip()}
             
-        return {"status": "sucesso", "log": stdout.decode().strip()}
+        return {"status": "sucesso", "log": process.stdout.strip()}
         
     finally:
         rotinas_em_execucao["jogadores"] = False
@@ -154,22 +155,26 @@ async def executar_rust_buscar_perfis() -> dict:
     try:
         rotinas_em_execucao["perfis"] = True
 
+        caminho_modulo_rust = resource_path("target", "release", "buscar_perfis.exe")
+
+        def rodar_subprocesso():
+            return subprocess.run(
+                [str(caminho_modulo_rust)],
+                capture_output=True,
+                text=True,
+                encoding="utf-8", # Já retorna as strings decodificadas
+                check=False
+            )
+
+        # Roda a função síncrona em uma thread separada de forma assíncrona
+        process = await asyncio.to_thread(rodar_subprocesso)
         
-        caminho_modulo_rust = resource_path("target\release\buscar_perfis.exe")
-        
-        process = await asyncio.create_subprocess_exec(
-            caminho_modulo_rust,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
-        )
-        
-        stdout, stderr = await process.communicate()
         
         if process.returncode != 0:
-            print(f"Erro no módulo Rust (Perfis): {stderr.decode().strip()}")
-            return {"status": "erro", "detalhe": stderr.decode().strip()}
+            print(f"Erro no módulo Rust (Perfis): {process.stderr.strip()}")
+            return {"status": "erro", "detalhe": process.stderr.strip()}
             
-        return {"status": "sucesso", "log": stdout.decode().strip()}
+        return {"status": "sucesso", "log": process.stdout.strip()}
         
     finally:
         rotinas_em_execucao["perfis"] = False
@@ -182,21 +187,26 @@ async def executar_rust_buscar_estatisticas() -> dict:
     try:
         rotinas_em_execucao["estatisticas"] = True
         
-        caminho_modulo_rust = resource_path("target\release\buscar_estatisticas.exe")
+        caminho_modulo_rust = resource_path("target", "release", "buscar_estatisticas.exe")
+
+        def rodar_subprocesso():
+            return subprocess.run(
+                [str(caminho_modulo_rust)],
+                capture_output=True,
+                text=True,
+                encoding="utf-8", # Já retorna as strings decodificadas
+                check=False
+            )
+
+        # Roda a função síncrona em uma thread separada de forma assíncrona
+        process = await asyncio.to_thread(rodar_subprocesso)
         
-        process = await asyncio.create_subprocess_exec(
-            caminho_modulo_rust,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
-        )
-        
-        stdout, stderr = await process.communicate()
         
         if process.returncode != 0:
-            print(f"Erro no módulo Rust (Estatísticas): {stderr.decode().strip()}")
-            return {"status": "erro", "detalhe": stderr.decode().strip()}
+            print(f"Erro no módulo Rust (Estatísticas): {process.stderr.strip()}")
+            return {"status": "erro", "detalhe": process.stderr.strip()}
             
-        return {"status": "sucesso", "log": stdout.decode().strip()}
+        return {"status": "sucesso", "log": process.stdout.strip()}
         
     finally:
         rotinas_em_execucao["estatisticas"] = False

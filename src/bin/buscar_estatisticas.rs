@@ -55,15 +55,37 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 params_stats.insert("PerMode", "Totals".to_string());
                 params_stats.insert("PlayerID", player_id.to_string());
 
-                if let Ok(resp) = client.get(url_stats).query(&params_stats).send().await {
-                    if resp.status().is_success() {
-                        if let Ok(json_stats) = resp.json::<Value>().await {
-                            let mut de_fato_conn = conn.lock().unwrap();
-                            let _ = salvar_estatisticas(&mut de_fato_conn, &json_stats);
+                match client.get(url_stats).query(&params_stats).send().await {
+                    Ok(resp) => {
+                        let status = resp.status();
+                        
+                        if status.is_success() {
+                            match resp.json::<Value>().await {
+                                Ok(json_stats) => {
+                                    let mut de_fato_conn = conn.lock().unwrap();
+                                    if let Err(e) = salvar_estatisticas(&mut de_fato_conn, &json_stats) {
+                                        eprintln!(">>> [Erro DB] Falha ao salvar banco para {}: {}", nome, e);
+                                    } else {
+                                        println!(">>> [Sucesso] Salvo: {}", nome);
+                                    }
+                                }
+                                Err(e) => eprintln!(">>> [Erro JSON] Falha de conversão para {}: {}", nome, e),
+                            }
+                        } else if status.as_u16() == 429 {
+                            eprintln!(">>> [429 Rate Limit] Limite estourado buscando {}! (O proxy pode estar desgastado)", nome);
+                        } else if status.as_u16() == 403 {
+                            eprintln!(">>> [403 Forbidden] IP bloqueado pela NBA buscando {}!", nome);
+                        } else {
+                            eprintln!(">>> [Erro HTTP {}] Falha ao buscar {}", status.as_u16(), nome);
                         }
                     }
+                    Err(e) => {
+                        eprintln!(">>> [Erro Network] Falha de conexão com o proxy/API para {}: {}", nome, e);
+                    }
                 }
-                tokio::time::sleep(Duration::from_millis(300)).await;
+                
+                // Pequena pausa para aliviar a carga no proxy
+                tokio::time::sleep(Duration::from_millis(500)).await;
             }
         }).buffer_unordered(limite_concorrencia);
 
@@ -79,7 +101,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 fn salvar_estatisticas(conn: &mut Connection, json: &Value) -> Result<(), Box<dyn Error>> {
     let tx = conn.transaction()?; 
-
+    
     if let Some(result_sets) = json["resultSets"].as_array() {
         for subset in result_sets {
             let nome_tabela = subset["name"].as_str().unwrap_or("");

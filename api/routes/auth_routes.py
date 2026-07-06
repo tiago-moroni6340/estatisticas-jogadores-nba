@@ -6,6 +6,7 @@ from api.utils.autenticacao import criar_token, autenticar_usuario, validar_senh
 from api.schemas.schemas import UsuarioSchema, LoginSchema
 from sqlalchemy.orm import Session
 from datetime import timedelta
+from fastapi.security import OAuth2PasswordRequestForm
 
 auth_router = APIRouter(prefix='/auth', tags=['auth'])
 
@@ -61,6 +62,22 @@ async def login(login_schema: LoginSchema, session: Session = Depends(pegar_sess
         "refresh_token": refresh_token,
         "token_type": "Bearer"
     }
+
+@auth_router.post("/login-form")
+async def login_form(dados_formulario: OAuth2PasswordRequestForm = Depends(), session: Session = Depends(pegar_session)):
+    usuario = autenticar_usuario(dados_formulario.username, dados_formulario.password, session)
+    if not usuario:
+        raise HTTPException(status_code=400, detail="Usuário não encontrado ou credenciais inválidas!")
+    
+    if not usuario.ativo:
+        raise HTTPException(status_code=403, detail="Esta conta foi desativada.")
+    
+    access_token = criar_token(usuario.id)
+    return {
+        'access_token': access_token,
+        "token_type": "Bearer"
+    }
+
 
 @auth_router.get("/refresh")
 async def use_refresh_token(usuario: Usuario = Depends(verificar_token)):

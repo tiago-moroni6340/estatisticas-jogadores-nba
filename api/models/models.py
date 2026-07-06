@@ -20,8 +20,6 @@ class Usuario(Base):
     cargo = Column('cargo', String)
     senha = Column('senha', String)
     ativo = Column('ativo', Boolean)
-    is_verified = Column('is_verified', Boolean, default=False)
-    verification_code = Column('verification_code', String)
 
     def __init__(self, nome, email, data_nascimento, cidade, estado, pais, 
                  celular, equipe, cargo, senha, is_verified=False, ativo=True):
