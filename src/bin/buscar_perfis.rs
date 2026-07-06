@@ -15,7 +15,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     println!("Iniciando pipeline de dados PESSOAIS (Perfis) da NBA...");
 
    let db_url = env::var("DATABASE_URL_RUST").expect("A variável de ambiente DATABASE_URL_RUST não foi definida no arquivo .env");
-    let pool = PgPoolOptions::new().max_connections(5).connect(db_url).await?;
+    let pool = PgPoolOptions::new().max_connections(5).connect(&db_url).await?;
     
     criar_tabela_perfil(&pool).await?;
     let client = Arc::new(configurar_cliente_http()?);

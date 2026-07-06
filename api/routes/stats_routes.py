@@ -65,7 +65,7 @@ async def estatistica_total_carreira(
         func.sum(StatsTotalRegularSeason.fgm).label("arremessos_convertidos"),
         func.sum(StatsTotalRegularSeason.fga).label("tentativas_arremessos"),
         func.sum(StatsTotalRegularSeason.fg_pct).label("porcentagem_conversao_arremessos"),
-        func.sum(StatsTotalRegularSeason.fg3m).label("arremessos_3_pontos_convertidos")
+        func.sum(StatsTotalRegularSeason.fg3m).label("arremessos_3_pontos_convertidos"),
         func.sum(StatsTotalRegularSeason.fg3a).label("tentativas_arremessos_3_pontos"),
         func.sum(StatsTotalRegularSeason.fg3_pct).label("porcentagem_conversao_arremessos_3_pontos"),
         func.sum(StatsTotalRegularSeason.ftm).label("lances_livres_convertidos"),
@@ -90,7 +90,7 @@ async def estatistica_total_carreira(
         func.sum(StatsTotalPlayoff.fgm).label("arremessos_convertidos"),
         func.sum(StatsTotalPlayoff.fga).label("tentativas_arremessos"),
         func.sum(StatsTotalPlayoff.fg_pct).label("porcentagem_conversao_arremessos"),
-        func.sum(StatsTotalPlayoff.fg3m).label("arremessos_3_pontos_convertidos")
+        func.sum(StatsTotalPlayoff.fg3m).label("arremessos_3_pontos_convertidos"),
         func.sum(StatsTotalPlayoff.fg3a).label("tentativas_arremessos_3_pontos"),
         func.sum(StatsTotalPlayoff.fg3_pct).label("porcentagem_conversao_arremessos_3_pontos"),
         func.sum(StatsTotalPlayoff.ftm).label("lances_livres_convertidos"),
@@ -121,7 +121,7 @@ async def estatistica_total_carreira(
         "tentativas_arremessos_3_pontos": (reg_stats.tentativas_arremessos_3_pontos or 0) + (playoff_stats.tentativas_arremessos_3_pontos or 0),
         "porcentagem_conversao_arremessos_3_pontos": (reg_stats.porcentagem_conversao_arremessos_3_pontos or 0) + (playoff_stats.porcentagem_conversao_arremessos_3_pontos or 0),
         "lances_livres_convertidos": (reg_stats.lances_livres_convertidos or 0) + (playoff_stats.lances_livres_convertidos or 0),
-        "tentativas_lances_livres" (reg_stats.tentativas_lances_livres or 0) + (playoff_stats.tentativas_lances_livres or 0),
+        "tentativas_lances_livres": (reg_stats.tentativas_lances_livres or 0) + (playoff_stats.tentativas_lances_livres or 0),
         "porcentagem_conversao_lances_livres": (reg_stats.porcentagem_conversao_lances_livres or 0) + (playoff_stats.porcentagem_conversao_lances_livres or 0),
         "rebotes_ofensivos": (reg_stats.rebotes_ofensivos or 0) + (playoff_stats.rebotes_ofensivos or 0),
         "rebotes_defensivos": (reg_stats.rebotes_defensivos or 0) + (playoff_stats.rebotes_defensivos or 0),

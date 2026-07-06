@@ -35,7 +35,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         println!("Conectando ao banco de dados PostgreSQL...");
         let pool = PgPoolOptions::new()
             .max_connections(5)
-            .connect(db_url)
+            .connect(&db_url)
             .await?;
 
         criar_tabela_jogadores_ativos(&pool).await?;

@@ -18,7 +18,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     println!("Iniciando pipeline de ESTATÍSTICAS da NBA...");
 
     let db_url = env::var("DATABASE_URL").expect("A variável de ambiente DATABASE_URL não foi definida no arquivo .env");
-    let pool = PgPoolOptions::new().max_connections(5).connect(db_url).await?;
+    let pool = PgPoolOptions::new().max_connections(5).connect(&db_url).await?;
     
     criar_tabelas_estatisticas(&pool).await?;
     
@@ -220,7 +220,7 @@ async fn salvar_estatisticas(pool: &sqlx::PgPool, json: &Value) -> Result<(), Bo
                         .execute(&mut *tx).await?;
                     }
                 }
-                "CareerTotalsRegularSeason" => {
+                "CareerTotalsPostSeason" => {
                     if let Some(row) = rows.get(0).and_then(|r| r.as_array()) {
                         sqlx::query(
                             "INSERT INTO totais_carreira_playoffs
