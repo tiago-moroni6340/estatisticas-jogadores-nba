@@ -1,0 +1,27 @@
+[project]
+name = "estatisticas-jogadores-nba"
+version = "0.1.0"
+description = "API para extração, monitoramento e consulta de dados estatísticos da NBA"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Tiago Moroni Silva Ferreira", email = "d2023006340@unifei.edu.br"},
+    {name = "Thiago Ianarelli Linhares Couto", email = "d2022002239@unifei.edu.br"}
+]
+dependencies = [
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.28.0",
+    "SQLAlchemy>=2.0.0",
+    "pydantic[email]>=2.6.0",
+    "python-dotenv>=1.0.0",
+    "passlib[bcrypt]==1.7.4",
+    "python-jose[cryptography]>=3.3.0",
+    "cachetools>=5.3.0",
+    "apscheduler>=3.10.0",
+    "nba-api>=1.4.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
