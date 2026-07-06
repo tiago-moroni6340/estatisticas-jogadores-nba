@@ -1,6 +1,7 @@
 import asyncio
 import json
 import subprocess
+import platform
 from datetime import datetime
 from cachetools import TTLCache
 from sqlalchemy.orm import Session
@@ -9,6 +10,7 @@ from contextlib import contextmanager
 from api.models.models import StatsRegularSeason, StatsTotalRegularSeason, StatsSeasonPlayoff, StatsTotalPlayoff
 from nba_api.stats.endpoints import scoreboardv2
 from pathlib import Path
+
 
 
 pegar_session_ctx = contextmanager(pegar_session)
@@ -36,6 +38,11 @@ def resource_path(*path_segments: str) -> Path:
     # Junta a base com os segmentos
     return BASE_DIR.joinpath(*path_segments)
 
+def obter_sufixo_sistema() -> str:
+    return ".exe" if platform.system() == "Windows" else ""
+
+sufixo = obter_sufixo_sistema()
+
 async def executar_rust_partidas(data_str: str) -> list:
     """Executa o binário compilado em Rust e captura o JSON retornado no stdout."""
     if data_str in datas_em_execucao:
@@ -43,7 +50,7 @@ async def executar_rust_partidas(data_str: str) -> list:
         return []
 
     try:
-        caminho_modulo_rust = resource_path("target", "release", "buscar_partidas.exe")
+        caminho_modulo_rust = resource_path("target", "release", f"buscar_partidas{sufixo}")
 
         datas_em_execucao.add(data_str)
         # Função síncrona empacotada
@@ -89,7 +96,7 @@ async def executar_rust_linha_tempo(player_id: int, temporada: str = "2025-26") 
         
         player_id_str = str(player_id)
         
-        caminho_modulo_rust = resource_path("target", "release", "buscar_historico_partidas_jogadores.exe")
+        caminho_modulo_rust = resource_path("target", "release", f"buscar_historico_partidas_jogadores{sufixo}")
 
         def rodar_subprocesso():
             return subprocess.run(
@@ -124,7 +131,7 @@ async def executar_rust_buscar_jogadores() -> dict:
     
     try:
         rotinas_em_execucao["jogadores"] = True
-        caminho_modulo_rust = resource_path("target", "release", "buscar_jogadores.exe")
+        caminho_modulo_rust = resource_path("target", "release", f"buscar_jogadores{sufixo}")
 
         def rodar_subprocesso():
             return subprocess.run(
@@ -155,7 +162,7 @@ async def executar_rust_buscar_perfis() -> dict:
     try:
         rotinas_em_execucao["perfis"] = True
 
-        caminho_modulo_rust = resource_path("target", "release", "buscar_perfis.exe")
+        caminho_modulo_rust = resource_path("target", "release", f"buscar_perfis{sufixo}")
 
         def rodar_subprocesso():
             return subprocess.run(
@@ -187,7 +194,7 @@ async def executar_rust_buscar_estatisticas() -> dict:
     try:
         rotinas_em_execucao["estatisticas"] = True
         
-        caminho_modulo_rust = resource_path("target", "release", "buscar_estatisticas.exe")
+        caminho_modulo_rust = resource_path("target", "release", f"buscar_estatisticas{sufixo}")
 
         def rodar_subprocesso():
             return subprocess.run(
