@@ -1,4 +1,4 @@
-// services/auth_service.dart
+
 import 'api_client.dart';
 
 class AuthService {
@@ -14,7 +14,7 @@ class AuthService {
       auth: false,
     );
 
-    // Sincronizado com o retorno do backend Python (access_token)
+  
     final token = resp is Map ? resp['access_token'] : null;
 
     if (token == null) {
@@ -41,7 +41,7 @@ class AuthService {
         'equipe': equipe,
         'cargo': cargo,
         'senha': senha,
-        'confirmacao_senha': confirmacaoSenha, // Sincronizado com UsuarioSchema do Python
+        'confirmacao_senha': confirmacaoSenha, 
         'ativo': true,
       },
       auth: false,
