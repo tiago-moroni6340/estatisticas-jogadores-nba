@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-/// Exceção customizada para erros vindos da API.
+
 class ApiException implements Exception {
   final int statusCode;
   final String message;
@@ -12,15 +12,12 @@ class ApiException implements Exception {
   String toString() => 'ApiException($statusCode): $message';
 }
 
-/// Cliente HTTP central. Todas as chamadas à API passam por aqui, que:
-/// - Monta a URL base
-/// - Injeta o header `Authorization: Bearer <token>` automaticamente
-/// - Trata erros (422, 401, etc.) de forma padronizada
+
 class ApiClient {
   ApiClient._internal();
   static final ApiClient instance = ApiClient._internal();
 
-  // AJUSTE AQUI: coloque a URL base real do seu backend (sem barra no final).
+  
   static const String baseUrl = 'http://localhost:8000';
 
   final _storage = const FlutterSecureStorage();
