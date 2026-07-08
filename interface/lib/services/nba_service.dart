@@ -1,26 +1,25 @@
 import '../models/player.dart';
 import 'api_client.dart';
 
-/// Serviço com todos os endpoints de dados da NBA descritos no `openai.yaml`.
+
 class NbaService {
   final _api = ApiClient.instance;
 
-  /// GET /nba_dados/  (healthcheck)
+  
   Future<dynamic> statusApi() => _api.get('/nba_dados/', auth: false);
 
-  /// GET /nba_dados/perfil_jogadores
+  
   Future<List<Player>> listarJogadores() async {
-  // Chamada get padrão no endpoint da API
+ 
   final response = await _api.get('/nba_dados/perfil_jogadores');
 
-  // AJUSTADO AQUI:
-  // Se a resposta for o dicionário/mapa que você nos mostrou:
+  
   if (response is Map && response.containsKey('players_personal_data')) {
     final listaJson = response['players_personal_data'] as List;
     return listaJson.map((json) => Player.fromJson(json)).toList();
   } 
   
-  // Tratamento fallback caso venha uma lista crua direto
+  
   if (response is List) {
     return response.map((json) => Player.fromJson(json)).toList();
   }
@@ -28,13 +27,13 @@ class NbaService {
   return [];
 }
 
-  /// GET /nba_dados/perfil_jogadores/{nba_player_id}
+  
   Future<Map<String, dynamic>> perfilJogador(int nbaPlayerId) async {
     final resp = await _api.get('/nba_dados/perfil_jogadores/$nbaPlayerId');
     return Map<String, dynamic>.from(resp ?? {});
   }
 
-  /// GET /nba_dados/player_stats/career_regular_season/{nba_player_id}
+
   Future<Map<String, dynamic>> estatisticaCarreiraRegularSeason(int nbaPlayerId) async {
     final resp = await _api.get('/nba_dados/player_stats/career_regular_season/$nbaPlayerId');
     if (resp is Map && resp.containsKey('player_stats_regular_season')) {
@@ -43,7 +42,7 @@ class NbaService {
     return Map<String, dynamic>.from(resp ?? {});
   }
 
-  /// GET /nba_dados/player_stats/career_playoffs/{nba_player_id}
+  
   Future<Map<String, dynamic>> estatisticaCarreiraPlayoffs(int nbaPlayerId) async {
     final resp = await _api.get('/nba_dados/player_stats/career_playoffs/$nbaPlayerId');
     if (resp is Map && resp.containsKey('player_stats_playoffs')) {
@@ -52,7 +51,7 @@ class NbaService {
     return Map<String, dynamic>.from(resp ?? {});
   }
 
-  /// GET /nba_dados/player_stats/career_total/{nba_player_id}
+  
   Future<Map<String, dynamic>> estatisticaCarreiraTotal(int nbaPlayerId) async {
     final resp = await _api.get('/nba_dados/player_stats/career_total/$nbaPlayerId');
     if (resp is Map && resp.containsKey('player_stats_total')) {
@@ -61,7 +60,7 @@ class NbaService {
     return Map<String, dynamic>.from(resp ?? {});
   }
 
-  /// GET /nba_dados/player_stats/regular_season/{nba_player_id}/{season}
+  
   Future<Map<String, dynamic>> estatisticaRegularSeason(int nbaPlayerId, String season) async {
     final resp = await _api.get('/nba_dados/player_stats/regular_season/$nbaPlayerId/$season');
     if (resp is Map && resp.containsKey('player_season_stats_regular_season')) {
@@ -71,7 +70,7 @@ class NbaService {
     return {};
   }
 
-  /// GET /nba_dados/player_stats/playoffs/{nba_player_id}/{season}
+  
   Future<Map<String, dynamic>> estatisticaPlayoffs(int nbaPlayerId, String season) async {
     final resp = await _api.get('/nba_dados/player_stats/playoffs/$nbaPlayerId/$season');
     if (resp is Map && resp.containsKey('player_season_stats_playoff')) {
@@ -82,11 +81,11 @@ class NbaService {
   }
 
 
-  /// GET /nba_dados/player_stats/ranking
+  
   Future<List<dynamic>> ranking({
     required String season,
-    required String etapa, // 'regular' | 'playoffs' | 'all'
-    required String tipoEstatistica, // 'pts' | 'ast' | 'reb' | 'min' ...
+    required String etapa, 
+    required String tipoEstatistica, 
     int limit = 10,
   }) async {
     final resp = await _api.get('/nba_dados/player_stats/ranking', query: {
@@ -96,7 +95,7 @@ class NbaService {
       'limit': limit,
     });
 
-    // Ajustado para capturar a chave exata da resposta do ranking
+    
     if (resp is Map && resp.containsKey('ranking')) {
       return resp['ranking'] as List;
     }
@@ -104,7 +103,7 @@ class NbaService {
     return _extrairLista(resp);
   }
 
-  /// GET /nba_dados/player_stats/compare
+  
   Future<Map<String, dynamic>> comparar({
     required int playerId1,
     required int playerId2,
@@ -120,10 +119,10 @@ class NbaService {
     return Map<String, dynamic>.from(resp ?? {});
   }
 
-  /// GET /nba_dados/player_stats/games (não exige autenticação no yaml)
+  
   Future<List<dynamic>> jogosPorData(String dataBr) async {
     try {
-      // Converte DD/MM/AAAA para MM/DD/YYYY
+     
       final partes = dataBr.split('/');
       if (partes.length != 3) throw Exception('Formato de data inválido');
       
@@ -132,7 +131,7 @@ class NbaService {
       final resp = await _api.get(
         '/nba_dados/player_stats/games',
         query: {'data': dataAmericana},
-        auth: true, // Garante envio do Token injetado pelo ApiClient
+        auth: true, 
       );
 
       if (resp is Map && resp.containsKey('jogaways') || resp.containsKey('jogos')) {
@@ -144,7 +143,7 @@ class NbaService {
     }
   }
 
-  /// GET /nba_dados/player_stats/timeline (não exige autenticação no yaml)
+  
   Future<List<dynamic>> timelineJogador({
     required int playerId,
     String temporada = '2025-26',
@@ -160,9 +159,7 @@ class NbaService {
     return _extrairLista(resp);
   }
 
-  /// Normaliza a resposta da API para sempre virar uma List, já que o yaml
-  /// não define o formato exato (pode vir como lista pura ou dentro de uma
-  /// chave como {"data": [...]} ou {"jogadores": [...]}).
+ 
   List<dynamic> _extrairLista(dynamic resp) {
     if (resp is List) return resp;
     if (resp is Map) {
