@@ -4,4 +4,4 @@
 *.env
 /backup
 *.key
-./__pycache__
+/logs_api
