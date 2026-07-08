@@ -1,213 +1,95 @@
-# 🏀 NBA Player Statistics API
+# NBA Stats — App Flutter
 
-![Python](https://img.shields.io/badge/Python-3.10+-blue)
-![Rust](https://img.shields.io/badge/Rust-Latest-orange)
-![FastAPI](https://img.shields.io/badge/FastAPI-green)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-blue)
-![License](https://img.shields.io/badge/License-MIT-yellow)
+App em Flutter (tema escuro) que consome a API descrita em `openai.yaml`,
+permitindo navegar por **Jogadores**, **Times** e **Favoritos**, além de
+autenticação (login / criar conta) e visualização de estatísticas por
+jogador.
 
-Uma API robusta para extração, processamento e consulta de estatísticas da NBA, combinando **FastAPI** e **Rust** para alta performance.
+## Como rodar
 
----
+1. Instale as dependências:
+   ```bash
+   flutter pub get
+   ```
+2. Configure a URL da sua API em `lib/services/api_client.dart`:
+   ```dart
+   static const String baseUrl = 'https://SEU-BACKEND-AQUI.com';
+   ```
+3. Rode o app:
+   ```bash
+   flutter run
+   ```
 
-## 📑 Índice
-- Funcionalidades
-- Arquitetura
-- Tecnologias
-- Instalação
-- Configuração
-- Execução
-- Endpoints
-- Estrutura
-- Autores
-- Licença
+## Estrutura
 
-## ✨ Funcionalidades
-
-- 🔐 Autenticação JWT
-- 👤 Perfis de jogadores
-- 📊 Estatísticas de carreira
-- 🏆 Rankings dinâmicos
-- ⚖️ Comparação entre jogadores
-- 📈 Timeline dos últimos jogos
-- 🔄 Atualização automática via APScheduler
-- ⚡ ETL concorrente em Rust
-
----
-
-## 🚀 Arquitetura
-
-| Camada | Responsabilidade |
-|--------|------------------|
-| FastAPI | API REST, autenticação e regras de negócio |
-| Rust | ETL, scraping e processamento concorrente |
-| PostgreSQL | Persistência dos dados |
-| APScheduler | Atualizações automáticas |
-
-```mermaid
-flowchart LR
-Cliente --> FastAPI
-FastAPI --> PostgreSQL
-FastAPI --> RustWorkers
-RustWorkers --> NBAAPI[NBA Stats API]
+```
+lib/
+  main.dart                     -> ponto de entrada, providers e tema
+  theme/app_theme.dart          -> tema escuro
+  models/
+    player.dart                 -> modelo de jogador (parsing defensivo)
+    team.dart                   -> lista estática dos 30 times da NBA
+  services/
+    api_client.dart             -> cliente HTTP central (token, headers, erros)
+    auth_service.dart           -> login, criar conta, refresh, deletar conta
+    nba_service.dart            -> todos os endpoints de /nba_dados
+    favorites_service.dart      -> favoritos salvos localmente
+  providers/
+    auth_provider.dart
+    players_provider.dart
+    favorites_provider.dart
+  screens/
+    login_screen.dart / register_screen.dart
+    home_screen.dart            -> navegação por abas (Jogadores/Times/Favoritos)
+    players_screen.dart         -> lista + busca de jogadores
+    player_detail_screen.dart   -> estatísticas (regular/playoffs/carreira)
+    teams_screen.dart / team_players_screen.dart
+    favorites_screen.dart
+  widgets/
+    player_card.dart
 ```
 
----
+## ⚠️ Pontos importantes sobre a API (`openai.yaml`)
 
-## 🛠 Tecnologias
+O arquivo OpenAPI fornecido define os **endpoints**, mas quase todos os
+retornos usam `schema: {}` — ou seja, **o formato exato do JSON de resposta
+não está documentado**. Para o app funcionar 100% com seus dados reais,
+você provavelmente vai precisar ajustar:
 
-### Python
-- FastAPI
-- SQLAlchemy
-- Pydantic
-- Passlib
-- python-jose
-- APScheduler
+1. **`lib/models/player.dart`** — a função `Player.fromJson` tenta várias
+   chaves comuns (`id`, `nome`, `name`, `time`, `team`, etc). Ajuste para o
+   nome real dos campos que sua API retorna em
+   `/nba_dados/perfil_jogadores`.
 
-### Rust
-- Tokio
-- Reqwest
-- SQLx
-- Serde
+2. **`lib/services/auth_service.dart`** — o método `login()` assume que a
+   resposta tem um campo `access_token` (padrão comum do FastAPI). Se sua
+   API retornar outro nome de campo, ajuste ali.
 
----
+3. **Times**: a API **não possui nenhum endpoint de listagem de times**
+   (só trabalha por `nba_player_id`). Por isso, a tela "Times" usa uma
+   lista estática das 30 franquias (`models/team.dart`) e faz o
+   agrupamento no app, a partir do campo de time devolvido no perfil do
+   jogador. Se sua API não devolver o time no perfil do jogador, essa tela
+   precisará de uma fonte de dados adicional.
 
-## ⚙️ Instalação
+4. **Favoritos**: também não existe endpoint de favoritos na API — a
+   funcionalidade foi implementada localmente no dispositivo
+   (`shared_preferences`), guardando os `nba_player_id` favoritados.
 
-### Clone o repositório
+5. **Autenticação**: quase todos os endpoints de dados exigem
+   `OAuth2PasswordBearer` (Bearer token). O `ApiClient` já injeta o header
+   `Authorization: Bearer <token>` automaticamente em todas as chamadas,
+   exceto `/nba_dados/player_stats/games`, `/nba_dados/player_stats/timeline`
+   e `/nba_dados/` (que no yaml aparecem sem o bloco `security`).
 
-```bash
-git clone <url-do-repositorio>
-cd estatisticas-jogadores-nba
-```
+## Próximos passos sugeridos
 
-### Ambiente virtual
-
-```bash
-python -m venv venv
-```
-
-Linux/macOS
-
-```bash
-source venv/bin/activate
-```
-
-Windows
-
-```powershell
-venv\Scripts\activate
-```
-
-### Dependências
-
-```bash
-pip install -e .
-```
-
-### Compile os workers Rust
-
-```bash
-cargo build --release
-```
-
-Os binários serão gerados em:
-
-```text
-target/release/
-```
-
----
-
-## 🔐 Configuração
-
-Crie um arquivo `.env`:
-
-```ini
-SECRET_KEY=sua_chave_secreta
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-
-DATABASE_URL=postgresql://usuario:senha@localhost:5432/nba_db
-DATABASE_URL_RUST=postgres://usuario:senha@localhost:5432/nba_db
-
-RESEND_API_KEY=sua_chave
-```
-
----
-
-## ▶️ Executando
-
-```bash
-uvicorn api.main:app --reload
-```
-
-API:
-
-`http://localhost:8000`
-
-Swagger:
-
-`http://localhost:8000/docs`
-
----
-
-## 📡 Endpoints
-
-### Autenticação
-
-| Método | Endpoint | Descrição |
-|--------|----------|-----------|
-| POST | `/auth/criar_conta` | Criar usuário |
-| POST | `/auth/login` | Login |
-| GET | `/auth/refresh` | Renovar token |
-
-### Estatísticas
-
-| Método | Endpoint |
-|--------|----------|
-| GET | `/perfil_jogadores` |
-| GET | `/player_stats/career_total/{id}` |
-| GET | `/player_stats/ranking` |
-| GET | `/player_stats/compare` |
-| GET | `/player_stats/timeline` |
-
-### Atualização do banco
-
-| Método | Endpoint |
-|--------|----------|
-| POST | `/update_db/players` |
-| POST | `/update_db/profiles` |
-| POST | `/update_db/statistics` |
-
----
-
-## 📁 Estrutura do Projeto
-
-```text
-projeto/
-├── api/
-├── database/
-├── models/
-├── routers/
-├── rust/
-│   ├── update_players/
-│   ├── update_profiles/
-│   └── update_statistics/
-├── tests/
-├── .env
-└── README.md
-```
-
----
-
-## 👨‍💻 Autores
-
-- Tiago Moroni Silva Ferreira
-- Thiago Ianarelli Linhares Couto
-
----
-
-## 📄 Licença
-
-Distribuído sob a licença MIT.
+- Adicionar as telas de **Ranking** (`/player_stats/ranking`) e
+  **Comparar Jogadores** (`/player_stats/compare`), já que os métodos
+  correspondentes (`ranking()` e `comparar()`) já estão prontos em
+  `NbaService`.
+- Adicionar paginação/lazy loading caso `/nba_dados/perfil_jogadores`
+  retorne uma lista muito grande.
+- Trocar o parsing genérico de estatísticas (grade de chave/valor) por
+  cards nomeados assim que você souber os nomes reais dos campos
+  (ex: PTS, REB, AST).
