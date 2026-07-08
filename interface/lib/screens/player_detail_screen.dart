@@ -18,13 +18,13 @@ class _PlayerDetailScreenState extends State<PlayerDetailScreen>
   final _service = NbaService();
   late TabController _tabController;
 
-  // Estados dos Dados
+ 
   Map<String, dynamic>? _regular;
   Map<String, dynamic>? _playoffs;
   Map<String, dynamic>? _total;
   List<dynamic> _historicoJogos = [];
 
-  // Estados de Controle de Filtro
+ 
   final List<String> _temporadas = ['Geral', '2025-26', '2024-25', '2023-24', '2022-23'];
   String _temporadaRegularSelecionada = 'Geral';
   String _temporadaPlayoffsSelecionada = 'Geral';
@@ -35,7 +35,7 @@ class _PlayerDetailScreenState extends State<PlayerDetailScreen>
   bool _carregandoHistorico = true;
   String? _erro;
 
-  // AJUSTADO: Dicionário agora mapeia os apelidos vindos da API para o nome completo da franquia
+  
   String _obterNomeCompletoTime(String? nomeTime) {
     if (nomeTime == null || nomeTime.trim().isEmpty || nomeTime == 'N/A' || nomeTime == 'Sem time') return 'Sem Time';
     
@@ -75,7 +75,7 @@ class _PlayerDetailScreenState extends State<PlayerDetailScreen>
     return timesNba[nomeTime.trim()] ?? nomeTime;
   }
 
-  // AJUSTADO: Função para traduzir o apelido do time para o padrão de URL da ESPN
+
   String _obterSlugEspnPorNome(String? nome) {
     if (nome == null || nome.isEmpty) return '';
     
@@ -269,7 +269,7 @@ class _PlayerDetailScreenState extends State<PlayerDetailScreen>
                                 boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))],
                               ),
                               child: Image.network(
-                                // MODIFICADO: Agora consome o slug correto mapeado a partir do nome
+                               
                                 'https://a.espncdn.com/i/teamlogos/nba/500/$slugTime.png',
                                 fit: BoxFit.contain,
                                 errorBuilder: (_, __, ___) => const Icon(Icons.sports_basketball, size: 14, color: Colors.orange),
