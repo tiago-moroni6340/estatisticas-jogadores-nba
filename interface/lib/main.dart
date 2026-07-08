@@ -34,7 +34,6 @@ class NbaApp extends StatelessWidget {
   }
 }
 
-/// Decide se mostra a tela de Login ou a Home, com base na sessão salva.
 class _Porteiro extends StatelessWidget {
   const _Porteiro();
 
