@@ -1,4 +1,4 @@
-// screens/compare_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/players_provider.dart';
@@ -16,18 +16,18 @@ class CompareScreen extends StatefulWidget {
 class _CompareScreenState extends State<CompareScreen> {
   final _service = NbaService();
 
-  // Seleções dos Filtros (Todos iniciam nulos para forçar o estado vazio)
+  
   Player? _jogador1;
   Player? _jogador2;
   String? _temporada;
   String? _etapa;
 
-  // Estados da Requisição
+
   Map<String, dynamic>? _dadosComparacao;
   bool _carregando = false;
   String? _erro;
 
-  // Opções estáticas de filtros compatíveis com a API
+ 
   final List<String> _temporadas = ['2025-26', '2024-25', '2023-24', '2022-23'];
   final Map<String, String> _etapas = {
     'regular': 'Temporada Regular',
@@ -77,14 +77,14 @@ class _CompareScreenState extends State<CompareScreen> {
       appBar: AppBar(title: const Text('Comparar Jogadores')),
       body: Column(
         children: [
-          // Painel de Seleção (Card superior)
+          
           Card(
             margin: const EdgeInsets.all(16),
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Column(
                 children: [
-                  // Dropdown Jogador 1
+                  
                   DropdownButtonFormField<Player>(
                     decoration: const InputDecoration(labelText: 'Jogador 1', prefixIcon: Icon(Icons.person)),
                     value: _jogador1,
@@ -106,7 +106,7 @@ class _CompareScreenState extends State<CompareScreen> {
                     onChanged: (v) => setState(() => _jogador2 = v),
                   ),
                   const SizedBox(height: 12),
-                  // Filtros de Temporada e Etapa lado a lado
+                
                   Row(
                     children: [
                       Expanded(
@@ -131,7 +131,7 @@ class _CompareScreenState extends State<CompareScreen> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  // Botão de ação de Comparar
+                 
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
@@ -147,7 +147,7 @@ class _CompareScreenState extends State<CompareScreen> {
             ),
           ),
 
-          // Área de Resultados / Tabelas Expandida
+         
           Expanded(
             child: _carregando
                 ? const Center(child: CircularProgressIndicator())
@@ -206,8 +206,8 @@ class _CompareScreenState extends State<CompareScreen> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       child: Card(
-        clipBehavior: Clip.antiAlias, // Garante que as bordas da tabela acompanhem o arredondamento do Card
-        margin: EdgeInsets.zero, // Remove margem para ocupar o máximo de espaço lateral
+        clipBehavior: Clip.antiAlias, 
+        margin: EdgeInsets.zero, 
         child: SizedBox(
           width: double.infinity,
           height: double.infinity,
@@ -218,9 +218,9 @@ class _CompareScreenState extends State<CompareScreen> {
             child: SingleChildScrollView(
               padding: EdgeInsets.zero,
               child: DataTable(
-                columnSpacing: 32, // Espaçamento maior entre colunas para preencher a tela
-                dataRowMinHeight: 48, // Altura aumentada da linha
-                dataRowMaxHeight: 56, // Altura máxima aumentada da linha
+                columnSpacing: 32, 
+                dataRowMinHeight: 48, 
+                dataRowMaxHeight: 56, 
                 columns: [
                   const DataColumn(label: Text('MÉTRICA', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textSecondary))),
                   DataColumn(label: Text('$nomeJ1\n($timeJ1)', textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primary, fontSize: 13))),
