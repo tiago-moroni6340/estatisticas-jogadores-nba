@@ -1,4 +1,4 @@
-// screens/ranking_screen.dart
+
 import 'package:flutter/material.dart';
 import '../services/nba_service.dart';
 import '../theme/app_theme.dart';
@@ -13,17 +13,17 @@ class RankingScreen extends StatefulWidget {
 class _RankingScreenState extends State<RankingScreen> {
   final _service = NbaService();
 
-  // Filtros Globais iniciam nulos para evitar chamadas automáticas
+  
   String? _temporada;
   String? _etapa;
-  String _metricaSelecionada = 'pts'; // Mantemos a métrica padrão pré-selecionada em memória
+  String _metricaSelecionada = 'pts'; 
 
-  // Dados da API
+ 
   List<dynamic> _listaRanking = [];
   bool _carregando = false;
   String? _erro;
 
-  // Listas de opções estáticas suportadas pela API
+
   final List<String> _temporadas = ['2025-26', '2024-25', '2023-24', '2022-23'];
   
   final Map<String, String> _etapas = {
@@ -48,11 +48,11 @@ class _RankingScreenState extends State<RankingScreen> {
   @override
   void initState() {
     super.initState();
-    // REMOVIDO: _buscarRanking() não roda mais ao iniciar a tela.
+ 
   }
 
   Future<void> _buscarRanking() async {
-    // Só dispara se ambos os filtros essenciais estiverem preenchidos pelo usuário
+    
     if (_temporada == null || _etapa == null) return;
 
     setState(() {
@@ -82,14 +82,14 @@ class _RankingScreenState extends State<RankingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Flag controlando se o usuário já fez alguma pesquisa válida
+    
     final jaBuscou = _temporada != null && _etapa != null;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Líderes de Estatísticas')),
       body: Column(
         children: [
-          // 1. Filtros de Contexto (Temporada e Etapa)
+          
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: Row(
@@ -129,7 +129,7 @@ class _RankingScreenState extends State<RankingScreen> {
             ),
           ),
 
-          // 2. Seletor Horizontal de Categorias (Sempre visível para navegação do usuário)
+          
           SizedBox(
             height: 48,
             child: ListView(
@@ -150,7 +150,7 @@ class _RankingScreenState extends State<RankingScreen> {
                     onSelected: (bool selected) {
                       if (selected) {
                         setState(() => _metricaSelecionada = entry.key);
-                        // Só chama a API na troca de chip se o formulário já tiver sido preenchido
+                        
                         if (jaBuscou) _buscarRanking();
                       }
                     },
@@ -162,7 +162,7 @@ class _RankingScreenState extends State<RankingScreen> {
 
           const SizedBox(height: 8),
 
-          // 3. Área Principal do Conteúdo Condicional
+          
           Expanded(
             child: _carregando
                 ? const Center(child: CircularProgressIndicator())
