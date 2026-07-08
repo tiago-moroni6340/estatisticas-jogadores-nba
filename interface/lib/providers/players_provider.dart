@@ -3,8 +3,6 @@ import '../models/player.dart';
 import '../services/nba_service.dart';
 import '../services/api_client.dart';
 
-/// Carrega a lista de jogadores uma única vez e compartilha entre as telas
-/// de Jogadores, Times (agrupamento) e Favoritos (filtro pelos IDs salvos).
 class PlayersProvider extends ChangeNotifier {
   final _service = NbaService();
 
@@ -30,7 +28,7 @@ class PlayersProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Agrupa os jogadores já carregados pela sigla/nome do time.
+
   Map<String, List<Player>> get jogadoresPorTime {
     final mapa = <String, List<Player>>{};
     for (final j in _jogadores) {
