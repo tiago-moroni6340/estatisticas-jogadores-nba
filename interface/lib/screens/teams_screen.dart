@@ -1,4 +1,4 @@
-// screens/teams_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/team.dart';
@@ -43,7 +43,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
                     .expand((e) => e.value)
                     .toList();
 
-                // URL dinâmica para o escudo oficial transparente via ESPN CDN
+                
                 final logoTimeUrl = 'https://a.espncdn.com/i/teamlogos/nba/500/${time.sigla.toLowerCase()}.png';
 
                 return Card(
@@ -62,7 +62,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
                         logoTimeUrl,
                         fit: BoxFit.contain,
                         errorBuilder: (context, error, stackTrace) {
-                          // Fallback caso a imagem falhe
+                         
                           return Center(
                             child: Text(time.sigla, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                           );
