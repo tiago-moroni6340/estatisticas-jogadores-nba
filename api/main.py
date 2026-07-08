@@ -4,8 +4,17 @@ from api.routes.auth_routes import auth_router
 from contextlib import asynccontextmanager
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from api.utils.extracao_dados_rust import loop_monitoramento_automatico
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Permite requisições de qualquer origem (inclusive do Flutter Web)
+    allow_credentials=True,
+    allow_methods=["*"],  # Libera todos os métodos (GET, POST, OPTIONS, DELETE, etc)
+    allow_headers=["*"],  # Libera todos os cabeçalhos (Headers)
+)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

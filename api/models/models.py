@@ -11,29 +11,17 @@ class Usuario(Base):
     id = Column('id', Integer, primary_key=True, autoincrement=True)
     nome = Column('nome', String)
     email = Column('email', String, nullable=False)
-    data_nascimento = Column('data_nascimento', String)
-    cidade = Column('cidade', String)
-    estado = Column('estado', String)
-    pais = Column('pais', String)
-    celular = Column('celular', String)
     equipe = Column('equipe', String)
     cargo = Column('cargo', String)
     senha = Column('senha', String)
     ativo = Column('ativo', Boolean)
 
-    def __init__(self, nome, email, data_nascimento, cidade, estado, pais, 
-                 celular, equipe, cargo, senha, is_verified=False, ativo=True):
+    def __init__(self, nome, email, equipe, cargo, senha, ativo=True):
         self.nome = nome
         self.email = email
-        self.data_nascimento = data_nascimento
-        self.cidade = cidade
-        self.estado = estado
-        self.pais = pais
-        self.celular = celular
         self.equipe = equipe
         self.cargo = cargo
         self.senha = senha
-        self.is_verified = is_verified
         self.ativo = ativo
 
 class JogadoresAtivos(Base):
@@ -43,7 +31,7 @@ class JogadoresAtivos(Base):
     nba_player_id = Column('nba_player_id', Integer, unique=True)
     nome_completo = Column('nome_completo', String)
     codigo_time = Column('codigo_time', Integer)
-    abreviacao_time = Column('abreviacao_time', Integer)
+    abreviacao_time = Column('abreviacao_time', String)
 
 class DadosJogador(Base):
     __tablename__ = 'jogadores_perfil'
@@ -69,7 +57,7 @@ class StatsRegularSeason(Base):
     nba_player_id = Column('nba_player_id', Integer)
     season_id = Column('season_id', String)
     team_abbreviation = Column('team_abbreviation', String)
-    player_age = Column('player_age', Float)  # REAL no Rust
+    player_age = Column('player_age', Float)
     gp = Column('gp', Integer)
     gs = Column('gs', Integer)
     min = Column('min', Integer)
@@ -98,13 +86,13 @@ class StatsRegularSeason(Base):
 
 
 class StatsSeasonPlayoff(Base):
-    __tablename__ = 'stats_playoffs'  # Ajustado de 'stats_playoff' para 'stats_playoffs'
+    __tablename__ = 'stats_playoffs'
     
     id = Column('id', Integer, primary_key=True, autoincrement=True)
     nba_player_id = Column('nba_player_id', Integer)
     season_id = Column('season_id', String)
     team_abbreviation = Column('team_abbreviation', String)
-    player_age = Column('player_age', Float)  # REAL no Rust
+    player_age = Column('player_age', Float)
     gp = Column('gp', Integer)
     gs = Column('gs', Integer)
     min = Column('min', Integer)
@@ -136,7 +124,7 @@ class StatsTotalRegularSeason(Base):
     __tablename__ = 'totais_carreira_regular'
     
     id = Column('id', Integer, primary_key=True, autoincrement=True)
-    nba_player_id = Column('nba_player_id', Integer)
+    nba_player_id = Column('nba_player_id', Integer, unique=True) # CORREÇÃO: Necessário unique=True para o ON CONFLICT do Rust
     gp = Column('gp', Integer)
     gs = Column('gs', Integer)
     min = Column('min', Integer)
@@ -159,11 +147,12 @@ class StatsTotalRegularSeason(Base):
     tov = Column('tov', Integer)
     fp = Column('fp', Integer)
 
+
 class StatsTotalPlayoff(Base):
     __tablename__ = 'totais_carreira_playoffs'
     
     id = Column('id', Integer, primary_key=True, autoincrement=True)
-    nba_player_id = Column('nba_player_id', Integer)
+    nba_player_id = Column('nba_player_id', Integer, unique=True) # CORREÇÃO: Necessário unique=True para o ON CONFLICT do Rust
     gp = Column('gp', Integer)
     gs = Column('gs', Integer)
     min = Column('min', Integer)

@@ -1,3 +1,4 @@
+import os
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, desc
 from sqlalchemy.orm import Session
@@ -10,12 +11,16 @@ from api.utils.extracao_dados_rust import (
     executar_rust_buscar_jogadores,
     executar_rust_buscar_perfis,
     executar_rust_buscar_estatisticas,
+    resource_path,
     cache_jogos, 
     cache_linha_tempo
 )
 from datetime import datetime
+from fastapi.responses import FileResponse
 
 nba_router = APIRouter(prefix='/nba_dados')
+
+PASTA_FOTOS = r"C:\Users\moron\Documents\nba_stats\api\fotos_jogadores"
 
 @nba_router.get("/")
 async def status_api():
@@ -414,3 +419,27 @@ async def atualizar_banco_estatisticas():
         raise HTTPException(status_code=500, detail=resultado["detalhe"])
         
     return resultado
+
+@nba_router.get("/player_stats/player_image/{player_id}")
+async def obter_imagem_local_jogador(player_id: int):
+    """
+    Busca a foto do jogador salva localmente no servidor e a retorna.
+    Caso não encontre, tenta retornar uma imagem padrão (silhueta) para evitar quebras no Flutter.
+    """
+    
+    caminho_foto = os.path.join(PASTA_FOTOS, f"{player_id}.png")
+    
+
+    if os.path.exists(caminho_foto):
+        return FileResponse(caminho_foto, media_type="image/png")
+    
+    
+    caminho_padrao = os.path.join(PASTA_FOTOS, "sem_foto.png")
+    if os.path.exists(caminho_padrao):
+        return FileResponse(caminho_padrao, media_type="image/png")
+        
+
+    raise HTTPException(
+        status_code=404, 
+        detail=f"A imagem para o jogador com ID {player_id} não foi encontrada no servidor."
+    )
