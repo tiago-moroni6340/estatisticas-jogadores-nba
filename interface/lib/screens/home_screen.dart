@@ -1,4 +1,3 @@
-// Dentro de screens/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
@@ -9,7 +8,6 @@ import 'compare_screen.dart';
 import 'ranking_screen.dart';
 import 'historico_games_screen.dart';
 import 'login_screen.dart';
-import 'live_games_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,14 +18,12 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _indice = 0;
-
-  // 2. INCLUIR NA LISTA DE TELAS (Coloquei como o quarto índice)
+  
   final _telas = const [
     PlayersScreen(),
     CompareScreen(),
     RankingScreen(),
-    LiveGamesScreen(),      // Tela com WebSocket
-    HistoricoGamesScreen(), // Nova tela de histórico (Sem erros!)
+    HistoricoGamesScreen(),
     TeamsScreen(),
     FavoritesScreen(),
   ];
@@ -64,14 +60,12 @@ class _HomeScreenState extends State<HomeScreen> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _indice,
         onTap: (i) => setState(() => _indice = i),
-        type: BottomNavigationBarType.fixed, // Use fixed se passar de 3-4 itens para os ícones não sumirem
+        type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Jogadores'),
           BottomNavigationBarItem(icon: Icon(Icons.compare_arrows), label: 'Comparar'),
           BottomNavigationBarItem(icon: Icon(Icons.leaderboard_outlined), label: 'Rankings'),
           
-          // NOVO ÍCONE PARA AO VIVO
-          BottomNavigationBarItem(icon: Icon(Icons.whatshot, color: Colors.redAccent), label: 'Hoje'),
           
           BottomNavigationBarItem(icon: Icon(Icons.calendar_month), label: 'Histórico'),
           BottomNavigationBarItem(icon: Icon(Icons.groups_outlined), label: 'Times'),
