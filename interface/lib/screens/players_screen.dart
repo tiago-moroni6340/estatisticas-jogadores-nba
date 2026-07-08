@@ -17,7 +17,7 @@ class _PlayersScreenState extends State<PlayersScreen> {
   @override
 void initState() {
   super.initState();
-  // Dispara o carregamento do Provider assim que a sub-tela for montada
+  
   WidgetsBinding.instance.addPostFrameCallback((_) {
     context.read<PlayersProvider>().carregar();
   });
