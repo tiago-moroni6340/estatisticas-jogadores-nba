@@ -53,7 +53,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     let display_name = row.get(2).and_then(|v| v.as_str()).unwrap_or("");
                     let roster_status = row.get(3).and_then(|v| v.as_i64()).unwrap_or(0);
                     let team_id = row.get(8).and_then(|v| v.as_i64()).unwrap_or(0);
-                    let team_abbreviation = row.get(10).and_then(|v| v.as_str()).unwrap_or("");
+                    let team_abbreviation = row.get(11).and_then(|v| v.as_str()).unwrap_or("");
 
                     if roster_status == 1 && player_id != 0 {
                         // Sintaxe de UPSERT do Postgres

@@ -25,9 +25,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let client = Arc::new(configurar_cliente_http()?);
 
     loop {
-        let jogadores: Vec<(i64, String)> = sqlx::query_as::<_, (i64, String)>(
+        let jogadores: Vec<(i32, String)> = sqlx::query_as::<_, (i32, String)>(
             "SELECT j.nba_player_id, j.nome_completo 
-             FROM jogadores_ativos j
+             FROM jogadores_perfil j
              LEFT JOIN totais_carreira_regular t ON j.nba_player_id = t.nba_player_id
              WHERE t.nba_player_id IS NULL
              LIMIT 10"
@@ -117,10 +117,10 @@ async fn salvar_estatisticas(pool: &sqlx::PgPool, json: &Value) -> Result<(), Bo
                     for row in rows.iter().filter_map(|r| r.as_array()) {
                         sqlx::query(
                             "INSERT INTO stats_temporada_regular 
-                             (nba_player_id, season_id, team_abbreviation, player_age, gp, gs, min, pts, ast, fgm, fga, fg_pct, fg3m, fg3a, fg3_pct, ftm, fta, ft_pct, oreb, dreb, reb, stl, blk, tov, pf)
+                             (nba_player_id, season_id, team_abbreviation, player_age, gp, gs, min, pts, ast, fgm, fga, fg_pct, fg3m, fg3a, fg3_pct, ftm, fta, ft_pct, oreb, dreb, reb, stl, blk, tov, fp)
                              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
                              ON CONFLICT (nba_player_id, season_id, team_abbreviation) DO UPDATE SET 
-                             player_age = EXCLUDED.player_age, gp = EXCLUDED.gp, gs = EXCLUDED.gs, min = EXCLUDED.min, pts = EXCLUDED.pts, ast = EXCLUDED.ast, fgm = EXCLUDED.fgm, fga = EXCLUDED.fga, fg_pct = EXCLUDED.fg_pct, fg3m = EXCLUDED.fg3m, fg3a = EXCLUDED.fg3a, fg3_pct = EXCLUDED.fg3_pct, ftm = EXCLUDED.ftm, fta = EXCLUDED.fta, ft_pct = EXCLUDED.ft_pct, oreb = EXCLUDED.oreb, dreb = EXCLUDED.dreb, reb = EXCLUDED.reb, stl = EXCLUDED.stl, blk = EXCLUDED.blk, tov = EXCLUDED.tov, pf = EXCLUDED.pf"
+                             player_age = EXCLUDED.player_age, gp = EXCLUDED.gp, gs = EXCLUDED.gs, min = EXCLUDED.min, pts = EXCLUDED.pts, ast = EXCLUDED.ast, fgm = EXCLUDED.fgm, fga = EXCLUDED.fga, fg_pct = EXCLUDED.fg_pct, fg3m = EXCLUDED.fg3m, fg3a = EXCLUDED.fg3a, fg3_pct = EXCLUDED.fg3_pct, ftm = EXCLUDED.ftm, fta = EXCLUDED.fta, ft_pct = EXCLUDED.ft_pct, oreb = EXCLUDED.oreb, dreb = EXCLUDED.dreb, reb = EXCLUDED.reb, stl = EXCLUDED.stl, blk = EXCLUDED.blk, tov = EXCLUDED.tov, fp = EXCLUDED.fp"
                         )
                         .bind(row[achar_idx("PLAYER_ID")].as_i64().unwrap_or(0))
                         .bind(row[achar_idx("SEASON_ID")].as_str().unwrap_or(""))
@@ -154,9 +154,9 @@ async fn salvar_estatisticas(pool: &sqlx::PgPool, json: &Value) -> Result<(), Bo
                     if let Some(row) = rows.get(0).and_then(|r| r.as_array()) {
                         sqlx::query(
                             "INSERT INTO totais_carreira_regular 
-                             (nba_player_id, gp, gs, min, pts, ast, fgm, fga, fg_pct, fg3m, fg3a, fg3_pct, ftm, fta, ft_pct, oreb, dreb, reb, stl, blk, tov, pf)
+                             (nba_player_id, gp, gs, min, pts, ast, fgm, fga, fg_pct, fg3m, fg3a, fg3_pct, ftm, fta, ft_pct, oreb, dreb, reb, stl, blk, tov, fp)
                              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
-                             ON CONFLICT (nba_player_id) DO UPDATE SET gp = EXCLUDED.gp, gs = EXCLUDED.gs, min = EXCLUDED.min, pts = EXCLUDED.pts, ast = EXCLUDED.ast, fgm = EXCLUDED.fgm, fga = EXCLUDED.fga, fg_pct = EXCLUDED.fg_pct, fg3m = EXCLUDED.fg3m, fg3a = EXCLUDED.fg3a, fg3_pct = EXCLUDED.fg3_pct, ftm = EXCLUDED.ftm, fta = EXCLUDED.fta, ft_pct = EXCLUDED.ft_pct, oreb = EXCLUDED.oreb, dreb = EXCLUDED.dreb, reb = EXCLUDED.reb, stl = EXCLUDED.stl, blk = EXCLUDED.blk, tov = EXCLUDED.tov, pf = EXCLUDED.pf"
+                             ON CONFLICT (nba_player_id) DO UPDATE SET gp = EXCLUDED.gp, gs = EXCLUDED.gs, min = EXCLUDED.min, pts = EXCLUDED.pts, ast = EXCLUDED.ast, fgm = EXCLUDED.fgm, fga = EXCLUDED.fga, fg_pct = EXCLUDED.fg_pct, fg3m = EXCLUDED.fg3m, fg3a = EXCLUDED.fg3a, fg3_pct = EXCLUDED.fg3_pct, ftm = EXCLUDED.ftm, fta = EXCLUDED.fta, ft_pct = EXCLUDED.ft_pct, oreb = EXCLUDED.oreb, dreb = EXCLUDED.dreb, reb = EXCLUDED.reb, stl = EXCLUDED.stl, blk = EXCLUDED.blk, tov = EXCLUDED.tov, fp = EXCLUDED.fp"
                         )
                         .bind(row[achar_idx("PLAYER_ID")].as_i64().unwrap_or(0))
                         .bind(row[achar_idx("GP")].as_i64().unwrap_or(0))
@@ -187,10 +187,10 @@ async fn salvar_estatisticas(pool: &sqlx::PgPool, json: &Value) -> Result<(), Bo
                     for row in rows.iter().filter_map(|r| r.as_array()) {
                         sqlx::query(
                             "INSERT INTO stats_playoffs
-                             (nba_player_id, season_id, team_abbreviation, player_age, gp, gs, min, pts, ast, fgm, fga, fg_pct, fg3m, fg3a, fg3_pct, ftm, fta, ft_pct, oreb, dreb, reb, stl, blk, tov, pf)
+                             (nba_player_id, season_id, team_abbreviation, player_age, gp, gs, min, pts, ast, fgm, fga, fg_pct, fg3m, fg3a, fg3_pct, ftm, fta, ft_pct, oreb, dreb, reb, stl, blk, tov, fp)
                              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
                              ON CONFLICT (nba_player_id, season_id, team_abbreviation) DO UPDATE SET 
-                             player_age = EXCLUDED.player_age, gp = EXCLUDED.gp, gs = EXCLUDED.gs, min = EXCLUDED.min, pts = EXCLUDED.pts, ast = EXCLUDED.ast, fgm = EXCLUDED.fgm, fga = EXCLUDED.fga, fg_pct = EXCLUDED.fg_pct, fg3m = EXCLUDED.fg3m, fg3a = EXCLUDED.fg3a, fg3_pct = EXCLUDED.fg3_pct, ftm = EXCLUDED.ftm, fta = EXCLUDED.fta, ft_pct = EXCLUDED.ft_pct, oreb = EXCLUDED.oreb, dreb = EXCLUDED.dreb, reb = EXCLUDED.reb, stl = EXCLUDED.stl, blk = EXCLUDED.blk, tov = EXCLUDED.tov, pf = EXCLUDED.pf"
+                             player_age = EXCLUDED.player_age, gp = EXCLUDED.gp, gs = EXCLUDED.gs, min = EXCLUDED.min, pts = EXCLUDED.pts, ast = EXCLUDED.ast, fgm = EXCLUDED.fgm, fga = EXCLUDED.fga, fg_pct = EXCLUDED.fg_pct, fg3m = EXCLUDED.fg3m, fg3a = EXCLUDED.fg3a, fg3_pct = EXCLUDED.fg3_pct, ftm = EXCLUDED.ftm, fta = EXCLUDED.fta, ft_pct = EXCLUDED.ft_pct, oreb = EXCLUDED.oreb, dreb = EXCLUDED.dreb, reb = EXCLUDED.reb, stl = EXCLUDED.stl, blk = EXCLUDED.blk, tov = EXCLUDED.tov, fp = EXCLUDED.fp"
                         )
                         .bind(row[achar_idx("PLAYER_ID")].as_i64().unwrap_or(0))
                         .bind(row[achar_idx("SEASON_ID")].as_str().unwrap_or(""))
@@ -224,9 +224,9 @@ async fn salvar_estatisticas(pool: &sqlx::PgPool, json: &Value) -> Result<(), Bo
                     if let Some(row) = rows.get(0).and_then(|r| r.as_array()) {
                         sqlx::query(
                             "INSERT INTO totais_carreira_playoffs
-                             (nba_player_id, gp, gs, min, pts, ast, fgm, fga, fg_pct, fg3m, fg3a, fg3_pct, ftm, fta, ft_pct, oreb, dreb, reb, stl, blk, tov, pf)
+                             (nba_player_id, gp, gs, min, pts, ast, fgm, fga, fg_pct, fg3m, fg3a, fg3_pct, ftm, fta, ft_pct, oreb, dreb, reb, stl, blk, tov, fp)
                              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
-                             ON CONFLICT (nba_player_id) DO UPDATE SET gp = EXCLUDED.gp, gs = EXCLUDED.gs, min = EXCLUDED.min, pts = EXCLUDED.pts, ast = EXCLUDED.ast, fgm = EXCLUDED.fgm, fga = EXCLUDED.fga, fg_pct = EXCLUDED.fg_pct, fg3m = EXCLUDED.fg3m, fg3a = EXCLUDED.fg3a, fg3_pct = EXCLUDED.fg3_pct, ftm = EXCLUDED.ftm, fta = EXCLUDED.fta, ft_pct = EXCLUDED.ft_pct, oreb = EXCLUDED.oreb, dreb = EXCLUDED.dreb, reb = EXCLUDED.reb, stl = EXCLUDED.stl, blk = EXCLUDED.blk, tov = EXCLUDED.tov, pf = EXCLUDED.pf"
+                             ON CONFLICT (nba_player_id) DO UPDATE SET gp = EXCLUDED.gp, gs = EXCLUDED.gs, min = EXCLUDED.min, pts = EXCLUDED.pts, ast = EXCLUDED.ast, fgm = EXCLUDED.fgm, fga = EXCLUDED.fga, fg_pct = EXCLUDED.fg_pct, fg3m = EXCLUDED.fg3m, fg3a = EXCLUDED.fg3a, fg3_pct = EXCLUDED.fg3_pct, ftm = EXCLUDED.ftm, fta = EXCLUDED.fta, ft_pct = EXCLUDED.ft_pct, oreb = EXCLUDED.oreb, dreb = EXCLUDED.dreb, reb = EXCLUDED.reb, stl = EXCLUDED.stl, blk = EXCLUDED.blk, tov = EXCLUDED.tov, fp = EXCLUDED.fp"
                         )
                         .bind(row[achar_idx("PLAYER_ID")].as_i64().unwrap_or(0))
                         .bind(row[achar_idx("GP")].as_i64().unwrap_or(0))

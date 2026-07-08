@@ -11,10 +11,12 @@ use nba_stats::{configurar_cliente_http, criar_tabela_perfil};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    dotenvy::dotenv().ok();
+
     let inicio_pipeline = Instant::now();
     println!("Iniciando pipeline de dados PESSOAIS (Perfis) da NBA...");
 
-   let db_url = env::var("DATABASE_URL_RUST").expect("A variável de ambiente DATABASE_URL_RUST não foi definida no arquivo .env");
+    let db_url = env::var("DATABASE_URL_RUST").expect("A variável de ambiente DATABASE_URL_RUST não foi definida no arquivo .env");
     let pool = PgPoolOptions::new().max_connections(5).connect(&db_url).await?;
     
     criar_tabela_perfil(&pool).await?;
@@ -22,11 +24,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     loop {
         // Query_as substitui o mapeamento manual do rusqlite
-        let jogadores: Vec<(i64, String)> = sqlx::query_as::<_, (i64, String)>(
+        let jogadores: Vec<(i32, String)> = sqlx::query_as::<_, (i32, String)>(
             "SELECT j.nba_player_id, j.nome_completo 
              FROM jogadores_ativos j
              LEFT JOIN jogadores_perfil p ON j.nba_player_id = p.nba_player_id
              WHERE p.nba_player_id IS NULL
+             ORDER BY j.nba_player_id ASC
              LIMIT 10"
         )
         .fetch_all(&pool)
@@ -72,7 +75,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-async fn salvar_perfil(pool: &sqlx::PgPool, player_id: i64, json: &Value) -> Result<(), Box<dyn Error>> {
+async fn salvar_perfil(pool: &sqlx::PgPool, player_id: i32, json: &Value) -> Result<(), Box<dyn Error>> {
     if let Some(result_sets) = json["resultSets"].as_array() {
         if let Some(set) = result_sets.iter().find(|s| s["name"] == "CommonPlayerInfo") {
             let headers = set["headers"].as_array().ok_or("Sem headers")?;
@@ -101,7 +104,7 @@ async fn salvar_perfil(pool: &sqlx::PgPool, player_id: i64, json: &Value) -> Res
                 .bind(r[achar_idx("POSITION")].as_str().unwrap_or(""))
                 .bind(r[achar_idx("JERSEY")].as_str().unwrap_or(""))
                 .bind(r[achar_idx("SEASON_EXP")].as_str().unwrap_or(""))
-                .bind(r[achar_idx("TEAM_ABBREVIATION")].as_str().unwrap_or(""))
+                .bind(r[achar_idx("TEAM_NAME")].as_str().unwrap_or(""))
                 .execute(pool)
                 .await?;
                 
