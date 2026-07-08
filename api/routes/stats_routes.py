@@ -392,7 +392,7 @@ async def obter_linha_tempo_jogador(
 
 @nba_router.post("/update_db/players")
 async def atualizar_banco_jogadores():
-    """Aciona o pipeline em Rust para buscar e salvar jogadores ativos."""
+   
     resultado = await executar_rust_buscar_jogadores()
     
     if resultado.get("status") == "erro":
@@ -402,7 +402,7 @@ async def atualizar_banco_jogadores():
 
 @nba_router.post("/update_db/profiles")
 async def atualizar_banco_perfis():
-    """Aciona o pipeline em Rust para baixar e salvar perfis pendentes."""
+    
     resultado = await executar_rust_buscar_perfis()
     
     if resultado.get("status") == "erro":
@@ -412,7 +412,7 @@ async def atualizar_banco_perfis():
 
 @nba_router.post("/update_db/statistics")
 async def atualizar_banco_estatisticas():
-    """Aciona o pipeline em Rust para baixar e salvar estatísticas de carreira pendentes."""
+    
     resultado = await executar_rust_buscar_estatisticas()
     
     if resultado.get("status") == "erro":
@@ -422,10 +422,6 @@ async def atualizar_banco_estatisticas():
 
 @nba_router.get("/player_stats/player_image/{player_id}")
 async def obter_imagem_local_jogador(player_id: int):
-    """
-    Busca a foto do jogador salva localmente no servidor e a retorna.
-    Caso não encontre, tenta retornar uma imagem padrão (silhueta) para evitar quebras no Flutter.
-    """
     
     caminho_foto = os.path.join(PASTA_FOTOS, f"{player_id}.png")
     
