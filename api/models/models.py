@@ -124,7 +124,7 @@ class StatsTotalRegularSeason(Base):
     __tablename__ = 'totais_carreira_regular'
     
     id = Column('id', Integer, primary_key=True, autoincrement=True)
-    nba_player_id = Column('nba_player_id', Integer, unique=True) # CORREÇÃO: Necessário unique=True para o ON CONFLICT do Rust
+    nba_player_id = Column('nba_player_id', Integer, unique=True) 
     gp = Column('gp', Integer)
     gs = Column('gs', Integer)
     min = Column('min', Integer)
@@ -152,7 +152,7 @@ class StatsTotalPlayoff(Base):
     __tablename__ = 'totais_carreira_playoffs'
     
     id = Column('id', Integer, primary_key=True, autoincrement=True)
-    nba_player_id = Column('nba_player_id', Integer, unique=True) # CORREÇÃO: Necessário unique=True para o ON CONFLICT do Rust
+    nba_player_id = Column('nba_player_id', Integer, unique=True) 
     gp = Column('gp', Integer)
     gs = Column('gs', Integer)
     min = Column('min', Integer)
