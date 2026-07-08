@@ -1,5 +1,3 @@
-// models/player.dart
-
 class Player {
   final int id;
   final String nome;
@@ -34,12 +32,9 @@ class Player {
     );
   }
 
-  // URL corrigida com os parâmetros de dimensão
   String get fotoOficialNba {
     if (fotoUrl != null) return fotoUrl!;
-    
-    // Substitua pelo endereço da sua API (ex: localhost:8000 em dev ou sua URL de produção)
-    // O seu próprio backend vai servir a imagem sem problemas de CORS para o navegador
+  
     return 'http://localhost:8000/nba_dados/player_stats/player_image/$id';
   }
 
