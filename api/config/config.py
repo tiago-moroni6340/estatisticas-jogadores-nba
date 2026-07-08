@@ -13,7 +13,6 @@ RESEND_API_KEY = os.getenv('RESEND_API_KEY')
 
 class BcryptContext:
     def hash(self, password: str) -> str:
-        # Gera o sal e o hash usando strings convertidas em bytes
         salt = bcrypt.gensalt()
         return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
 
