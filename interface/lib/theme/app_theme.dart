@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 
-/// Tema escuro do aplicativo, inspirado nas cores clássicas da NBA
-/// (fundo grafite, destaque em laranja de quadra e detalhes em azul).
 class AppTheme {
   static const Color background = Color(0xFF0D0D12);
   static const Color surface = Color(0xFF17171F);
   static const Color surfaceVariant = Color(0xFF1F1F29);
-  static const Color primary = Color(0xFFE84A27); // laranja NBA
+  static const Color primary = Color(0xFFE84A27); 
   static const Color secondary = Color(0xFF3B6EF6);
   static const Color textPrimary = Color(0xFFF5F5F7);
   static const Color textSecondary = Color(0xFFA0A0AC);
